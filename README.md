@@ -1,106 +1,92 @@
-# Simple Golang SSH Client
+<div align="center">
+	<h1>Golang SSH Client.</h1>
+    <a href="https://github.com/melbahja/goph">
+        <img src="https://github.com/melbahja/goph/raw/master/.github/goph.png" width="200">
+    </a>
+    <h4 align="center">
+	   Fast and easy golang ssh client module.
+	</h4>
+</div>
 
-Golang module to execute commands over SSH connection
+<p align="center">
+    <a href="#installation">Installation</a> ❘
+    <a href="#features">Features</a> ❘
+    <a href="#usage">Usage</a> ❘
+    <a href="#examples">Examples</a> ❘
+    <a href="#license">License</a>
+</p>
 
 
 ## Installation
 
 ```bash
-go get github.com/melbahja/ssh
+go get github.com/melbahja/goph
 ```
+
+## Features
+
+- Easy to use.
+- Supports known hosts by default.
+- Supports connections with passwords.
+- Supports connections with private keys.
+- Supports connections with protected private keys with passphrase.
+- Supports upload files from local to remote.
+- Supports download files from remote to local.
 
 ## Usage
 
+Run a command via ssh:
 ```go
 package main
 
 import (
 	"log"
 	"fmt"
-	"github.com/melbahja/ssh"
+	"github.com/melbahja/goph"
 )
 
 func main() {
 
-	// Start ssh connection
-	client, err := ssh.New(ssh.Config{
-		User: "root",
-		Addr: "192.168.122.163",
-		Auth: ssh.Key("/home/mohamed/.ssh/id_rsa", ""),
-	})
+	// Start new ssh connection with private key
+	client, err := goph.New("root", "192.168.122.163", goph.Key("/home/mohamed/.ssh/id_rsa", ""))
 
 	// Execute a command
-	out, err := client.Exec("ls /tmp/")
+	out, err := client.Run("ls /tmp/")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(out)
+	fmt.Println(string(out))
 }
-
 ```
 
-### Run Custom Command
-
+Start connection with protected private key:
 ```go
-cmd := client.Command("ls", []string{"-alh"})
-
-result, err := cmd.Run()
-
-if err != nil {
-	log.Fatal(err)
-}
-
-fmt.Println(result.Stdout.String())
-
+client, err := goph.New("root", "192.168.122.163", goph.Key("/home/mohamed/.ssh/id_rsa", "you_passphrase_here"))
 ```
 
-### SSH Connection With Passphrase
-
+Start connection with password:
 ```go
-client, err := ssh.New(ssh.Config{
-	User: "root",
-	Addr: "192.168.122.163",
-	Auth: ssh.Key("/home/mohamed/.ssh/id_rsa", "123456_your_passphrase_here"),
-})
+client, err := goph.New("root", "192.168.122.163", goph.Password("you_password_here"))
 ```
 
-### SSH Connection With Password (Unsafe!)
-
+Upload local file to remote:
 ```go
-client, err := ssh.New(ssh.Config{
-	User: "root",
-	Addr: "192.168.122.163",
-	Auth: ssh.Password("123456_your_password_here"),
-})
+err := client.Upload("/path/to/local/file", "/path/to/dest/remote")
 ```
 
-### Add ClientConfig
-
+Download remote file to local:
 ```go
-// import sh "golang.org/x/crypto/ssh"
-
-client, err := ssh.New(ssh.Config{
-	User: "root",
-	Addr: "192.168.122.163",
-	Port: 2000, // You can change the default 22 port
-	Auth: ssh.Key("/path/to/privateKey", ""),
-	Config: &sh.ClientConfig{
-		Timeout: 10 * time.Second,
-		// options here: https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc#ClientConfig 
-	},
-})
+err := client.Download("/path/to/remote/file", "/path/to/dest/localPath")
 ```
 
-### Examples
+For more read the docs on: [godoc](https://godoc.org/github.com/melbahja/goph)
 
-See [Examples](https://github.com/melbahja/ssh/blob/master/examples)
+## Examples
 
-
-### Contributing
-Welcome!
+See [Examples](https://github.com/melbahja/ssh/blob/master/examples).
 
 ## License
 
-[MIT](https://github.com/melbahja/ssh/blob/master/LICENSE) © [Mohammed El Bahja](https://git.io/mohamed)
+Goph is provided under the [MIT License](https://github.com/melbahja/goph/blob/master/LICENSE).
