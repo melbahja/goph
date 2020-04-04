@@ -1,96 +1,97 @@
 // Copyright 2020 Mohammed El Bahja. All rights reserved.
-// Use of this source code is governed by a MIT license,
-// license that can be found in the LICENSE file.
+// Use of this source code is governed by a MIT license.
 
-package ssh
+package goph
 
 import (
-	"os"
-	"io"
-	"fmt"
-	"bytes"
-	// "math/rand"
-	"github.com/segmentio/ksuid"
-	gossh "golang.org/x/crypto/ssh"
+	"time"
+	"golang.org/x/crypto/ssh"
 )
 
 type Client struct {
-	Client *gossh.Client
-	Conn ConnectionConfig
+	Port  int
+	Auth  Auth
+	Addr  string
+	User  string
+	Conn  *ssh.Client
+	Proto string
 }
 
-type Result struct {
+// Connect to ssh and get client
+// The key must be in known hosts
+func New(user string, addr string, auth Auth) (c *Client, err error) {
 
-	Stdout bytes.Buffer
-
-	Stderr bytes.Buffer
-}
-
-// 
-// Get a Command
-//
-func (c *Client) Command(command string, args []string) *Command {
-
-	return &Command{
-		Client: c,
-		Command: command,
-		Args: args,
-	}
-}
-
-// 
-// Run Cmd command and get Result and error
-//
-func (c Client) Run(command string) (Result, error) {
-
-	return c.Command(command, []string{}).Run()
-}
-
-// 
-// Exec command and get output as a string
-//
-func (c Client) Exec(command string) (string, error) {
-	
-	out, err := c.Run(command)
+	callback, err := DefaultKnownHosts()
 
 	if err != nil {
-		return "", err
-	}
-
-	return out.Stdout.String(), nil
-}
-
-// 
-// Copy file from local machine to remote machine
-//
-func (c Client) CopyFileToRemote(src string, dist string) (err error) {
-
-	var file io.Reader
-
-	if file, err = os.Open(src); err != nil {
 		return
 	}
 
-	cmd := c.Command("cp", []string{"/dev/stdin", dist})
-	cmd.Stdin = file
-
-	_, err = cmd.Run()  
+	c, err = NewConn(user, addr, auth, callback)
 	return
 }
 
-
+// Connect to ssh and get client without cheking knownhosts
 //
-// Run local executable file in remote machine 
-//
-func (c Client) RunFile(file string) (res Result, err error) {
+// PLEASE AVOID USING THIS, UNLESS YOU KNOW WHAT ARE YOU DOING!
+// if there a "man in the middle proxy", this can harm you!
+// You can add the key to know hosts and use New() func instead!
+func NewUnknown(user string, addr string, auth Auth) (*Client, error) {
 
-	tmp := fmt.Sprintf("/tmp/%X", ksuid.New().String())
+	return NewConn(user, addr, auth, ssh.InsecureIgnoreHostKey())
+}
 
-	if err = c.CopyFileToRemote(file, tmp); err != nil {
-		return
+// Get new client connection
+func NewConn(user string, addr string, auth Auth, callback ssh.HostKeyCallback) (c *Client, err error) {
+
+	c = &Client{
+		User: user,
+		Addr: addr,
+		Auth: auth,
 	}
 
-	res, err = c.Run(fmt.Sprintf("/usr/bin/env bash %s && rm -f %s", tmp, tmp))
+	err = Conn(c, &ssh.ClientConfig{
+		User:            c.User,
+		Auth:            c.Auth,
+		Timeout:         20 * time.Second,
+		HostKeyCallback: callback,
+	})
+
 	return
 }
 
+// Get new ssh session from client connection
+// See: https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc#Session
+func (c Client) NewSession() (*ssh.Session, error) {
+
+	return c.Conn.NewSession()
+}
+
+// Run a command over ssh connection
+func (c Client) Run(cmd string) ([]byte, error) {
+
+	var (
+		err  error
+		sess *ssh.Session
+	)
+
+	if sess, err = c.NewSession(); err != nil {
+		return nil, err
+	}
+
+	defer sess.Close()
+
+	return sess.CombinedOutput(cmd)
+}
+
+// Upload a local file to remote machine!
+func (c Client) Upload(localPath string, remotePath string) error {
+
+	return Upload(c.Conn, localPath, remotePath)
+}
+
+// Download file from remote machine!
+func (c Client) Download(remotePath string, localPath string) error {
+
+	return Download(c.Conn, remotePath, localPath)
+}
