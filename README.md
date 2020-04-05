@@ -81,7 +81,7 @@ Download remote file to local:
 err := client.Download("/path/to/remote/file", "/path/to/dest/localPath")
 ```
 
-For more read the docs on: [godoc](https://godoc.org/github.com/melbahja/goph)
+For more read the [go docs](https://pkg.go.dev/github.com/melbahja/goph).
 
 ## Examples
 
