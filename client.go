@@ -17,8 +17,7 @@ type Client struct {
 	Proto string
 }
 
-// Connect to ssh and get client
-// The key must be in known hosts
+// Connect to ssh and get client, the host public key must be in known hosts.
 func New(user string, addr string, auth Auth) (c *Client, err error) {
 
 	callback, err := DefaultKnownHosts()
@@ -31,8 +30,7 @@ func New(user string, addr string, auth Auth) (c *Client, err error) {
 	return
 }
 
-// Connect to ssh and get client without cheking knownhosts
-//
+// Connect to ssh and get client without cheking knownhosts.
 // PLEASE AVOID USING THIS, UNLESS YOU KNOW WHAT ARE YOU DOING!
 // if there a "man in the middle proxy", this can harm you!
 // You can add the key to know hosts and use New() func instead!
@@ -41,7 +39,7 @@ func NewUnknown(user string, addr string, auth Auth) (*Client, error) {
 	return NewConn(user, addr, auth, ssh.InsecureIgnoreHostKey())
 }
 
-// Get new client connection
+// Get new client connection.
 func NewConn(user string, addr string, auth Auth, callback ssh.HostKeyCallback) (c *Client, err error) {
 
 	c = &Client{
@@ -82,6 +80,12 @@ func (c Client) Run(cmd string) ([]byte, error) {
 	defer sess.Close()
 
 	return sess.CombinedOutput(cmd)
+}
+
+// Close client net connection.
+func (c Client) Close() error {
+
+	return c.Conn.Conn.Close()
 }
 
 // Upload a local file to remote machine!
