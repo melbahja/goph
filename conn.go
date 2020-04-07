@@ -13,7 +13,7 @@ const (
 	TCP string = "tcp"
 )
 
-// Get new connection.
+// Set new net connection to a client.
 func Conn(c *Client, cfg *ssh.ClientConfig) (err error) {
 
 	if c.Port == 0 {
