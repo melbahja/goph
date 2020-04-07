@@ -4,8 +4,8 @@
 package goph
 
 import (
-	"os"
 	"io"
+	"os"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
