@@ -162,7 +162,7 @@ loop:
 		case "upload":
 
 			if len(parts) != 3 {
-				fmt.Println("please type valid download command!")
+				fmt.Println("please type valid upload command!")
 				continue loop
 			}
 
