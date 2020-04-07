@@ -10,13 +10,13 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-// Use default known hosts files to verify connection host key.
+// Use default known hosts files to verify host public key.
 func DefaultKnownHosts() (ssh.HostKeyCallback, error) {
 
 	return KnownHosts(strings.Join([]string{os.Getenv("HOME"), ".ssh", "known_hosts"}, "/"))
 }
 
-// Get known hosts callback from custom path.
+// Get known hosts callback from a custom path.
 func KnownHosts(kh string) (ssh.HostKeyCallback, error) {
 
 	return knownhosts.New(kh)
