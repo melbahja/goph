@@ -26,12 +26,12 @@ go get github.com/melbahja/goph
 ## Features
 
 - Easy to use.
-- Supports known hosts by default.
-- Supports connections with passwords.
-- Supports connections with private keys.
-- Supports connections with protected private keys with passphrase.
-- Supports upload files from local to remote.
-- Supports download files from remote to local.
+- Supports **known hosts** by default.
+- Supports connections with **passwords**.
+- Supports connections with **private keys**.
+- Supports connections with **protected private keys** with passphrase.
+- Supports **upload** files from local to remote.
+- Supports **download** files from remote to local.
 
 ## Usage
 
@@ -47,38 +47,56 @@ import (
 
 func main() {
 
-	// Start new ssh connection with private key
-	client, err := goph.New("root", "192.168.122.163", goph.Key("/home/mohamed/.ssh/id_rsa", ""))
+	// Start new ssh connection with private key.
+	client, err := goph.New("root", "192.1.1.3", goph.Key("/home/mohamed/.ssh/id_rsa", ""))
 
-	// Execute a command
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Defer closing the network connection. 
+	defer client.Close()
+
+	// Execute your command.
 	out, err := client.Run("ls /tmp/")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Get your output as []byte.
 	fmt.Println(string(out))
 }
 ```
 
-Start connection with protected private key:
+##### Start connection with protected private key:
 ```go
-client, err := goph.New("root", "192.168.122.163", goph.Key("/home/mohamed/.ssh/id_rsa", "you_passphrase_here"))
+client, err := goph.New("root", "192.1.1.3", goph.Key("/home/mohamed/.ssh/id_rsa", "you_passphrase_here"))
 ```
 
-Start connection with password:
+##### Start connection with password:
 ```go
-client, err := goph.New("root", "192.168.122.163", goph.Password("you_password_here"))
+client, err := goph.New("root", "192.1.1.3", goph.Password("you_password_here"))
 ```
 
-Upload local file to remote:
+##### Upload local file to remote:
 ```go
-err := client.Upload("/path/to/local/file", "/path/to/dest/remote")
+err := client.Upload("/path/to/local/file", "/path/to/remote/file")
 ```
 
-Download remote file to local:
+##### Download remote file to local:
 ```go
-err := client.Download("/path/to/remote/file", "/path/to/dest/localPath")
+err := client.Download("/path/to/remote/file", "/path/to/local/file")
+```
+
+##### Execute bash commands:
+```go
+out, err := client.Run("bash -c 'printenv'")
+```
+
+##### Execute bash command with env variables:
+```go
+out, err := client.Run(`env MYVAR="MY VALUE" bash -c 'echo $MYVAR;'`)
 ```
 
 For more read the [go docs](https://pkg.go.dev/github.com/melbahja/goph).
