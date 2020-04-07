@@ -10,17 +10,33 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
+//
+// Run command and auth via password:
+// > go run main.go --ip 192.168.122.102 --pass --cmd ls
+//
+// Run command and auth via private key:
+// > go run main.go --ip 192.168.122.102 --cmd ls
+// Or:
+// > go run main.go --ip 192.168.122.102 --key /path/to/private_key --cmd ls
+//
+// Run command and auth with private key and passphrase:
+// > go run main.go --ip 192.168.122.102 --passphrase --cmd ls
+//
+//
+// You can test with the interactive mode without passing --cmd falg.
+//
+
 var (
-	err     error
-	auth    goph.Auth
-	client  *goph.Client
-	addr    string
-	user    string
-	port    int
-	key     string
-	cmd     string
-	pass    bool
-	keypass bool
+	err        error
+	auth       goph.Auth
+	client     *goph.Client
+	addr       string
+	user       string
+	port       int
+	key        string
+	cmd        string
+	pass       bool
+	passphrase bool
 )
 
 func init() {
@@ -29,9 +45,9 @@ func init() {
 	flag.StringVar(&user, "user", "root", "ssh user.")
 	flag.IntVar(&port, "port", 22, "ssh port number.")
 	flag.StringVar(&key, "key", strings.Join([]string{os.Getenv("HOME"), ".ssh", "id_rsa"}, "/"), "private key path.")
-	flag.StringVar(&cmd, "cmd", "ls", "command to run.")
+	flag.StringVar(&cmd, "cmd", "", "command to run.")
 	flag.BoolVar(&pass, "pass", false, "ask for ssh password instead of private key.")
-	flag.BoolVar(&keypass, "keypass", false, "ask for private key passphrase.")
+	flag.BoolVar(&passphrase, "passphrase", false, "ask for private key passphrase.")
 }
 
 func main() {
@@ -44,15 +60,28 @@ func main() {
 
 	} else {
 
-		auth = goph.Key(key, passphrase(keypass))
+		auth = goph.Key(key, getPassphrase(passphrase))
 	}
 
-	client, err = goph.NewUnknown(user, addr, auth)
+	client, err = goph.New(user, addr, auth)
+
+	// Close client net connection
+	defer client.Close()
 
 	if err != nil {
 		panic(err)
 	}
 
+	// If the cmd flag exists
+	if cmd != "" {
+
+		out, err := client.Run(cmd)
+
+		fmt.Println(string(out), err)
+		return
+	}
+
+	// else open interactive mode.
 	playWithSSHJustForTestingThisProgram(client)
 }
 
@@ -71,7 +100,7 @@ func askPass(msg string) string {
 	return strings.TrimSpace(string(pass))
 }
 
-func passphrase(ask bool) string {
+func getPassphrase(ask bool) string {
 
 	if ask {
 
