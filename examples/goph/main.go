@@ -1,11 +1,12 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"flag"
 	"bufio"
+	"flag"
+	"fmt"
+	"os"
 	"strings"
+
 	"github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -37,6 +38,7 @@ var (
 	cmd        string
 	pass       bool
 	passphrase bool
+	agent      bool
 )
 
 func init() {
@@ -47,6 +49,7 @@ func init() {
 	flag.StringVar(&key, "key", strings.Join([]string{os.Getenv("HOME"), ".ssh", "id_rsa"}, "/"), "private key path.")
 	flag.StringVar(&cmd, "cmd", "", "command to run.")
 	flag.BoolVar(&pass, "pass", false, "ask for ssh password instead of private key.")
+	flag.BoolVar(&agent, "agent", false, "use ssh agent for authentication (unix systems only).")
 	flag.BoolVar(&passphrase, "passphrase", false, "ask for private key passphrase.")
 }
 
@@ -54,7 +57,11 @@ func main() {
 
 	flag.Parse()
 
-	if pass == true {
+	if agent {
+
+		auth = goph.UseAgent()
+
+	} else if pass {
 
 		auth = goph.Password(askPass("Enter SSH Password: "))
 

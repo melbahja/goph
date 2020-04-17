@@ -32,6 +32,7 @@ go get github.com/melbahja/goph
 - Supports connections with **protected private keys** with passphrase.
 - Supports **upload** files from local to remote.
 - Supports **download** files from remote to local.
+- Supports connections with **ssh agent** (Unix systems only).
 
 ## Usage
 
@@ -77,6 +78,11 @@ client, err := goph.New("root", "192.1.1.3", goph.Key("/home/mohamed/.ssh/id_rsa
 ##### Start connection with password:
 ```go
 client, err := goph.New("root", "192.1.1.3", goph.Password("you_password_here"))
+```
+
+##### Start connection with ssh agent (Unix systems only):
+```go
+client, err := goph.New("root", "192.1.1.3", goph.UseAgent())
 ```
 
 ##### Upload local file to remote:
