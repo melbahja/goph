@@ -1,12 +1,16 @@
 package main
 
 import (
-	"bufio"
-	"flag"
-	"fmt"
 	"os"
+	"fmt"
+	"log"
+	"net"
+	"flag"
+	"bufio"
+	"errors"
 	"strings"
 
+	"golang.org/x/crypto/ssh"
 	"github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -39,6 +43,7 @@ var (
 	pass       bool
 	passphrase bool
 	agent      bool
+	newHost    bool
 )
 
 func init() {
@@ -51,6 +56,7 @@ func init() {
 	flag.BoolVar(&pass, "pass", false, "ask for ssh password instead of private key.")
 	flag.BoolVar(&agent, "agent", false, "use ssh agent for authentication (unix systems only).")
 	flag.BoolVar(&passphrase, "passphrase", false, "ask for private key passphrase.")
+	flag.BoolVar(&newHost, "new", false, "connect to new host and add it to known hosts.")
 }
 
 func main() {
@@ -70,14 +76,32 @@ func main() {
 		auth = goph.Key(key, getPassphrase(passphrase))
 	}
 
-	client, err = goph.New(user, addr, auth)
+	if newHost {
 
-	// Close client net connection
-	defer client.Close()
+		client, err = goph.NewConn(user, addr, auth, func(host string, remote net.Addr, key ssh.PublicKey) error {
+
+			// If you want to connect to new hosts.
+			// here your should check new connections public keys
+			// if the key not trusted you shuld return an error
+
+			if askIsHostTrusted(host, remote, key) == false {
+				return errors.New("you typed no, aborted!")
+			}
+
+			return goph.AddKnownHost(host, remote, key, "")
+		})
+
+	} else {
+
+		client, err = goph.New(user, addr, auth)
+	}
 
 	if err != nil {
 		panic(err)
 	}
+
+	// Close client net connection
+	defer client.Close()
 
 	// If the cmd flag exists
 	if cmd != "" {
@@ -115,6 +139,22 @@ func getPassphrase(ask bool) string {
 	}
 
 	return ""
+}
+
+func askIsHostTrusted(host string, remote net.Addr, key ssh.PublicKey) bool {
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Printf("Unknown Host: %s \nFingerprint: %s \n", host, ssh.FingerprintSHA256(key))
+	fmt.Print("Would you like to add it? type yes or no: ")
+
+	a, err := reader.ReadString('\n')
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return strings.ToLower(strings.TrimSpace(a)) == "yes"
 }
 
 func playWithSSHJustForTestingThisProgram(client *goph.Client) {
