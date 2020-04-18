@@ -2,12 +2,16 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
+	"log"
+	"net"
 	"os"
 	"strings"
 
 	"github.com/melbahja/goph"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -70,14 +74,48 @@ func main() {
 		auth = goph.Key(key, getPassphrase(passphrase))
 	}
 
-	client, err = goph.New(user, addr, auth)
+	client, err = goph.NewConn(user, addr, auth, func(host string, remote net.Addr, key ssh.PublicKey) error {
 
-	// Close client net connection
-	defer client.Close()
+		//
+		// If you want to connect to new hosts.
+		// here your should check new connections public keys
+		// if the key not trusted you shuld return an error
+		//
+
+		// hostFound: is host in known hosts file.
+		// err: error if key not in known hosts file OR host in known hosts file but key changed!
+		hostFound, err := goph.CheckKnownHost(host, remote, key, "")
+
+		// Host in known hosts but key mismatch!
+		// Maybe because of MAN IN THE MIDDLE ATTACK!
+		if hostFound && err != nil {
+
+			return err
+		}
+
+		// handshake because public key already exists.
+		if hostFound && err == nil {
+
+			return nil
+		}
+
+		// Ask user to check if he trust the host public key.
+		if askIsHostTrusted(host, key) == false {
+
+			// Make sure to return error on non trusted keys.
+			return errors.New("you typed no, aborted!")
+		}
+
+		// Add the new host to known hosts file.
+		return goph.AddKnownHost(host, remote, key, "")
+	})
 
 	if err != nil {
 		panic(err)
 	}
+
+	// Close client net connection
+	defer client.Close()
 
 	// If the cmd flag exists
 	if cmd != "" {
@@ -115,6 +153,22 @@ func getPassphrase(ask bool) string {
 	}
 
 	return ""
+}
+
+func askIsHostTrusted(host string, key ssh.PublicKey) bool {
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Printf("Unknown Host: %s \nFingerprint: %s \n", host, ssh.FingerprintSHA256(key))
+	fmt.Print("Would you like to add it? type yes or no: ")
+
+	a, err := reader.ReadString('\n')
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return strings.ToLower(strings.TrimSpace(a)) == "yes"
 }
 
 func playWithSSHJustForTestingThisProgram(client *goph.Client) {
