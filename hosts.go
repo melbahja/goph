@@ -27,6 +27,9 @@ func KnownHosts(file string) (ssh.HostKeyCallback, error) {
 }
 
 // Check is host in known hosts file.
+// It returns is the host found in known_hosts file and error
+// If the host found in known_hosts file and error not nil that means public key mismatch, maybe
+// MAN IN THE MIDDLE ATTACK! you should not handshake.
 func CheckKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile string) (bool, error) {
 
 	var (
