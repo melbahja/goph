@@ -50,6 +50,8 @@ func Download(c *ssh.Client, src string, dest string) (err error) {
 		return
 	}
 
+	defer client.Close()
+
 	destFile, err := os.Create(dest)
 
 	if err != nil {
@@ -57,8 +59,6 @@ func Download(c *ssh.Client, src string, dest string) (err error) {
 	}
 
 	defer destFile.Close()
-
-	defer client.Close()
 
 	srcFile, err := client.Open(src)
 
