@@ -82,19 +82,19 @@ func main() {
 		// if the key not trusted you shuld return an error
 		//
 
-		// inKnownHostsFile: is host in known hosts file.
+		// hostFound: is host in known hosts file.
 		// err: error if key not in known hosts file OR host in known hosts file but key changed!
-		inKnownHostsFile, err := goph.CheckKnownHost(host, remote, key, "")
+		hostFound, err := goph.CheckKnownHost(host, remote, key, "")
 
 		// Host in known hosts but key mismatch!
 		// Maybe because of MAN IN THE MIDDLE ATTACK!
-		if inKnownHostsFile && err != nil {
+		if hostFound && err != nil {
 
-			return errors.New("Key mismatch!")
+			return err
 		}
 
 		// handshake because public key already exists.
-		if inKnownHostsFile && err == nil {
+		if hostFound && err == nil {
 
 			return nil
 		}
