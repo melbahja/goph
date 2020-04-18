@@ -1,17 +1,17 @@
 package main
 
 import (
-	"os"
+	"bufio"
+	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net"
-	"flag"
-	"bufio"
-	"errors"
+	"os"
 	"strings"
 
-	"golang.org/x/crypto/ssh"
 	"github.com/melbahja/goph"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -43,7 +43,6 @@ var (
 	pass       bool
 	passphrase bool
 	agent      bool
-	newHost    bool
 )
 
 func init() {
@@ -56,7 +55,6 @@ func init() {
 	flag.BoolVar(&pass, "pass", false, "ask for ssh password instead of private key.")
 	flag.BoolVar(&agent, "agent", false, "use ssh agent for authentication (unix systems only).")
 	flag.BoolVar(&passphrase, "passphrase", false, "ask for private key passphrase.")
-	flag.BoolVar(&newHost, "new", false, "connect to new host and add it to known hosts.")
 }
 
 func main() {
@@ -76,25 +74,41 @@ func main() {
 		auth = goph.Key(key, getPassphrase(passphrase))
 	}
 
-	if newHost {
+	client, err = goph.NewConn(user, addr, auth, func(host string, remote net.Addr, key ssh.PublicKey) error {
 
-		client, err = goph.NewConn(user, addr, auth, func(host string, remote net.Addr, key ssh.PublicKey) error {
+		//
+		// If you want to connect to new hosts.
+		// here your should check new connections public keys
+		// if the key not trusted you shuld return an error
+		//
 
-			// If you want to connect to new hosts.
-			// here your should check new connections public keys
-			// if the key not trusted you shuld return an error
+		// inKnownHostsFile: is host in known hosts file.
+		// err: error if key not in known hosts file OR host in known hosts file but key changed!
+		inKnownHostsFile, err := goph.CheckKnownHost(host, remote, key, "")
 
-			if askIsHostTrusted(host, remote, key) == false {
-				return errors.New("you typed no, aborted!")
-			}
+		// Host in known hosts but key mismatch!
+		// Maybe because of MAN IN THE MIDDLE ATTACK!
+		if inKnownHostsFile && err != nil {
 
-			return goph.AddKnownHost(host, remote, key, "")
-		})
+			return errors.New("Key mismatch!")
+		}
 
-	} else {
+		// handshake because public key already exists.
+		if inKnownHostsFile && err == nil {
 
-		client, err = goph.New(user, addr, auth)
-	}
+			return nil
+		}
+
+		// Ask user to check if he trust the host public key.
+		if askIsHostTrusted(host, key) == false {
+
+			// Make sure to return error on non trusted keys.
+			return errors.New("you typed no, aborted!")
+		}
+
+		// Add the new host to know hosts file.
+		return goph.AddKnownHost(host, remote, key, "")
+	})
 
 	if err != nil {
 		panic(err)
@@ -141,7 +155,7 @@ func getPassphrase(ask bool) string {
 	return ""
 }
 
-func askIsHostTrusted(host string, remote net.Addr, key ssh.PublicKey) bool {
+func askIsHostTrusted(host string, key ssh.PublicKey) bool {
 
 	reader := bufio.NewReader(os.Stdin)
 
