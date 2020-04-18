@@ -106,7 +106,7 @@ func main() {
 			return errors.New("you typed no, aborted!")
 		}
 
-		// Add the new host to know hosts file.
+		// Add the new host to known hosts file.
 		return goph.AddKnownHost(host, remote, key, "")
 	})
 
