@@ -4,9 +4,9 @@
 package goph
 
 import (
-	"os"
-	"net"
 	"errors"
+	"net"
+	"os"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -26,13 +26,11 @@ func KnownHosts(file string) (ssh.HostKeyCallback, error) {
 	return knownhosts.New(file)
 }
 
-// Add a host to knows hosts
-// this function by @dixonwille see: https://github.com/melbahja/goph/issues/2
-func AddKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile string) error {
+// Check is host in known hosts file.
+func CheckKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile string) (bool, error) {
 
 	var (
 		hostErr error
-		fileErr error
 		keyErr  *knownhosts.KeyError
 	)
 
@@ -41,57 +39,58 @@ func AddKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile str
 		knownFile = defaultPath
 	}
 
-	_, fileErr = os.Stat(knownFile)
-
-	// Create if not exists
-	if errors.Is(fileErr, os.ErrNotExist) {
-
-		f, fileErr := os.OpenFile(knownFile, os.O_CREATE, 0600)
-
-		if fileErr != nil {
-			return fileErr
-		}
-
-		f.Close()
-	}
-
 	// Get host key callback
 	callback, hostErr := KnownHosts(knownFile)
 
 	if hostErr != nil {
-		return hostErr
+		return false, hostErr
 	}
 
-	// check if host already exists
+	// check if host already exists.
 	hostErr = callback(host, remote, key)
 
-	// Known host already exists
+	// Known host already exists.
 	if hostErr == nil {
-		return nil
+		return true, nil
 	}
 
-	// Append new host
-	if errors.As(hostErr, &keyErr) && len(keyErr.Want) == 0 {
-
-		f, fileErr := os.OpenFile(knownFile, os.O_WRONLY|os.O_APPEND, 0600)
-
-		if fileErr != nil {
-			return fileErr
-		}
-
-		defer f.Close()
-
-		knownHost := knownhosts.Normalize(remote.String())
-
-		_, fileErr = f.WriteString(knownhosts.Line([]string{knownHost}, key) + "\n")
-
-		if fileErr != nil {
-
-			return fileErr
-		}
-
-		return nil
+	// Make sure that the error returned from the callback is host not in file error.
+	// If keyErr.Want is greater than 0 length, that means host is in file with different key.
+	if errors.As(hostErr, &keyErr) && len(keyErr.Want) > 0 {
+		return true, keyErr
 	}
 
-	return hostErr
+	// Some other error occured and safest way to handle is to pass it back to user.
+	if hostErr != nil {
+		return false, hostErr
+	}
+
+	// Key is not trusted because it is not in the file.
+	return false, nil
+}
+
+// Add a host to knows hosts
+// this function by @dixonwille see: https://github.com/melbahja/goph/issues/2
+func AddKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile string) error {
+
+	var fileErr error
+
+	// Fallback to default known_hosts file
+	if knownFile == "" {
+		knownFile = defaultPath
+	}
+
+	f, fileErr := os.OpenFile(knownFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+
+	if fileErr != nil {
+		return fileErr
+	}
+
+	defer f.Close()
+
+	knownHost := knownhosts.Normalize(remote.String())
+
+	_, fileErr = f.WriteString(knownhosts.Line([]string{knownHost}, key) + "\n")
+
+	return fileErr
 }
