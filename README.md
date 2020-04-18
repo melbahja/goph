@@ -33,6 +33,7 @@ go get github.com/melbahja/goph
 - Supports **upload** files from local to remote.
 - Supports **download** files from remote to local.
 - Supports connections with **ssh agent** (Unix systems only).
+- Supports adding new hosts to **known_hosts file**.
 
 ## Usage
 
@@ -55,7 +56,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Defer closing the network connection. 
+	// Defer closing the network connection.
 	defer client.Close()
 
 	// Execute your command.
