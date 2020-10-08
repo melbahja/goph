@@ -4,8 +4,13 @@
 package goph
 
 import (
+	"fmt"
 	"io/ioutil"
+	"net"
+	"os"
+
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 type Auth []ssh.AuthMethod
@@ -28,6 +33,21 @@ func Key(prvFile string, passphrase string) Auth {
 
 	return Auth{
 		ssh.PublicKeys(signer),
+	}
+}
+
+func HasAgent() bool {
+	return os.Getenv("SSH_AUTH_SOCK") != ""
+}
+
+// UseAgent auth via ssh agent, (Unix systems only)
+func UseAgent() Auth {
+	sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
+	if err != nil {
+		panic(fmt.Errorf("could not find ssh agent: %w", err))
+	}
+	return Auth{
+		ssh.PublicKeysCallback(agent.NewClient(sshAgent).Signers),
 	}
 }
 
