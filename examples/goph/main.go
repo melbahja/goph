@@ -37,7 +37,7 @@ var (
 	client     *goph.Client
 	addr       string
 	user       string
-	port       int
+	port       uint
 	key        string
 	cmd        string
 	pass       bool
@@ -49,7 +49,7 @@ func init() {
 
 	flag.StringVar(&addr, "ip", "127.0.0.1", "machine ip address.")
 	flag.StringVar(&user, "user", "root", "ssh user.")
-	flag.IntVar(&port, "port", 22, "ssh port number.")
+	flag.UintVar(&port, "port", 22, "ssh port number.")
 	flag.StringVar(&key, "key", strings.Join([]string{os.Getenv("HOME"), ".ssh", "id_rsa"}, "/"), "private key path.")
 	flag.StringVar(&cmd, "cmd", "", "command to run.")
 	flag.BoolVar(&pass, "pass", false, "ask for ssh password instead of private key.")
@@ -57,11 +57,47 @@ func init() {
 	flag.BoolVar(&passphrase, "passphrase", false, "ask for private key passphrase.")
 }
 
+func VerifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
+
+	//
+	// If you want to connect to new hosts.
+	// here your should check new connections public keys
+	// if the key not trusted you shuld return an error
+	//
+
+	// hostFound: is host in known hosts file.
+	// err: error if key not in known hosts file OR host in known hosts file but key changed!
+	hostFound, err := goph.CheckKnownHost(host, remote, key, "")
+
+	// Host in known hosts but key mismatch!
+	// Maybe because of MAN IN THE MIDDLE ATTACK!
+	if hostFound && err != nil {
+
+		return err
+	}
+
+	// handshake because public key already exists.
+	if hostFound && err == nil {
+
+		return nil
+	}
+
+	// Ask user to check if he trust the host public key.
+	if askIsHostTrusted(host, key) == false {
+
+		// Make sure to return error on non trusted keys.
+		return errors.New("you typed no, aborted!")
+	}
+
+	// Add the new host to known hosts file.
+	return goph.AddKnownHost(host, remote, key, "")
+}
+
 func main() {
 
 	flag.Parse()
 
-	if agent {
+	if agent || goph.HasAgent() {
 
 		auth = goph.UseAgent()
 
@@ -74,40 +110,12 @@ func main() {
 		auth = goph.Key(key, getPassphrase(passphrase))
 	}
 
-	client, err = goph.NewConn(user, addr, auth, func(host string, remote net.Addr, key ssh.PublicKey) error {
-
-		//
-		// If you want to connect to new hosts.
-		// here your should check new connections public keys
-		// if the key not trusted you shuld return an error
-		//
-
-		// hostFound: is host in known hosts file.
-		// err: error if key not in known hosts file OR host in known hosts file but key changed!
-		hostFound, err := goph.CheckKnownHost(host, remote, key, "")
-
-		// Host in known hosts but key mismatch!
-		// Maybe because of MAN IN THE MIDDLE ATTACK!
-		if hostFound && err != nil {
-
-			return err
-		}
-
-		// handshake because public key already exists.
-		if hostFound && err == nil {
-
-			return nil
-		}
-
-		// Ask user to check if he trust the host public key.
-		if askIsHostTrusted(host, key) == false {
-
-			// Make sure to return error on non trusted keys.
-			return errors.New("you typed no, aborted!")
-		}
-
-		// Add the new host to known hosts file.
-		return goph.AddKnownHost(host, remote, key, "")
+	client, err = goph.NewConn(&goph.Config{
+		User:     user,
+		Addr:     addr,
+		Port:     port,
+		Auth:     auth,
+		Callback: VerifyHost,
 	})
 
 	if err != nil {
@@ -174,7 +182,7 @@ func askIsHostTrusted(host string, key ssh.PublicKey) bool {
 func playWithSSHJustForTestingThisProgram(client *goph.Client) {
 
 	fmt.Println("Welcome To Goph :D")
-	fmt.Printf("Connected to %s\n", client.Addr)
+	fmt.Printf("Connected to %s\n", client.Config.Addr)
 	fmt.Println("Type your shell command and enter.")
 	fmt.Println("To download file from remote type: download remote/path local/path")
 	fmt.Println("To upload file to remote type: upload local/path remote/path")
