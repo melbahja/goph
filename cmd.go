@@ -5,70 +5,46 @@ package goph
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
 )
 
 type Cmd struct {
-	Path    string
-	Args    []string
-	Env     []string
-	Stdin   io.Reader
-	Stdout  io.Writer
-	Stderr  io.Writer
-	Session *ssh.Session
+	Path string
+	Args []string
+	Env  []string
+	*ssh.Session
 }
 
 func (c *Cmd) CombinedOutput() ([]byte, error) {
-	return c.init().CombinedOutput()
+	return c.init().Session.CombinedOutput(c.String())
 }
 
 func (c *Cmd) Output() ([]byte, error) {
-	return c.init().Output()
+	return c.init().Session.Output(c.String())
 }
 
 func (c *Cmd) Run() error {
-	return c.init().Run()
+	return c.init().Session.Run(c.String())
 }
 
 func (c *Cmd) Start() error {
-	return c.init().Start()
-}
-
-func (c *Cmd) StderrPipe() (io.Reader, error) {
-	return c.Session.StderrPipe()
-}
-
-func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
-	return c.Session.StdinPipe()
-}
-
-func (c *Cmd) StdoutPipe() (io.Reader, error) {
-	return c.Session.StdoutPipe()
+	return c.init().Session.Start(c.String())
 }
 
 func (c *Cmd) String() string {
 	return fmt.Sprintf("%s %s", c.Path, strings.Join(c.Args, " "))
 }
 
-func (c *Cmd) Wait() error {
-	return c.Session.Wait()
-}
-
 func (c *Cmd) init() *Cmd {
 
 	// Set session env vars
-	var envParts []string
-	for _, env := range c.Env {
-		envParts = strings.Split(env, "=")
-		c.Session.Setenv(envParts[0], strings.Join(envParts[1:], "="))
+	var env []string
+	for _, value := range c.Env {
+		env = strings.Split(value, "=")
+		c.Setenv(env[0], strings.Join(env[1:], "="))
 	}
 
-	// Set session stdio
-	c.Session.Stdin = c.Stdin
-	c.Session.Stdout = c.Stdout
-	c.Session.Stderr = c.Stderr
 	return c
 }
