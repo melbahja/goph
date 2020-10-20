@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/melbahja/goph"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -43,6 +44,7 @@ var (
 	pass       bool
 	passphrase bool
 	agent      bool
+	sftpc      *sftp.Client
 )
 
 func init() {
@@ -179,6 +181,22 @@ func askIsHostTrusted(host string, key ssh.PublicKey) bool {
 	return strings.ToLower(strings.TrimSpace(a)) == "yes"
 }
 
+func getSftp(client *goph.Client) *sftp.Client {
+
+	var err error
+
+	if sftpc == nil {
+
+		sftpc, err = client.NewSftp()
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return sftpc
+}
+
 func playWithSSHJustForTestingThisProgram(client *goph.Client) {
 
 	fmt.Println("Welcome To Goph :D")
@@ -186,6 +204,7 @@ func playWithSSHJustForTestingThisProgram(client *goph.Client) {
 	fmt.Println("Type your shell command and enter.")
 	fmt.Println("To download file from remote type: download remote/path local/path")
 	fmt.Println("To upload file to remote type: upload local/path remote/path")
+	fmt.Println("To create a remote dir type: mkdirall /path/to/remote/newdir")
 	fmt.Println("To exit type: exit")
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -239,6 +258,18 @@ loop:
 
 			fmt.Println("upload err: ", err)
 			break
+
+		case "mkdirall":
+
+			if len(parts) != 2 {
+				fmt.Println("please type valid mkdirall command!")
+				continue loop
+			}
+
+			ftp := getSftp(client)
+
+			err = ftp.MkdirAll(parts[1])
+			fmt.Printf("mkdirall err(%v) you can check via: stat %s\n", err, parts[1])
 
 		default:
 
