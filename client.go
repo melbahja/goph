@@ -13,12 +13,14 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// A Client represents Goph client.
 type Client struct {
 	*ssh.Client
 	Config *Config
 	sftp   *sftp.Client
 }
 
+// Config for Client.
 type Config struct {
 	Auth     Auth
 	User     string
@@ -28,6 +30,7 @@ type Config struct {
 	Callback ssh.HostKeyCallback
 }
 
+// DefaultTimeout represents connection timeout.
 var DefaultTimeout = 20 * time.Second
 
 // New starts a new ssh connection, the host public key must be in known hosts.
@@ -65,7 +68,7 @@ func NewUnknown(user string, addr string, auth Auth) (*Client, error) {
 	})
 }
 
-// Get new client connection.
+// NewConn returns new client and error if any.
 func NewConn(config *Config) (c *Client, err error) {
 
 	c = &Client{
@@ -76,6 +79,7 @@ func NewConn(config *Config) (c *Client, err error) {
 	return
 }
 
+// Dial starts a client connection to SSH server based on config.
 func Dial(proto string, c *Config) (*ssh.Client, error) {
 	return ssh.Dial(proto, fmt.Sprintf("%s:%d", c.Addr, c.Port), &ssh.ClientConfig{
 		User:            c.User,
@@ -85,7 +89,7 @@ func Dial(proto string, c *Config) (*ssh.Client, error) {
 	})
 }
 
-// Run a command over ssh connection
+// Run runs a command over client connection.
 func (c Client) Run(cmd string) ([]byte, error) {
 
 	var (
@@ -102,6 +106,7 @@ func (c Client) Run(cmd string) ([]byte, error) {
 	return sess.CombinedOutput(cmd)
 }
 
+// Command returns new Cmd and error if any.
 func (c Client) Command(name string, args ...string) (*Cmd, error) {
 
 	var (
@@ -120,6 +125,7 @@ func (c Client) Command(name string, args ...string) (*Cmd, error) {
 	}, nil
 }
 
+// NewSftp returns new sftp client and error if any.
 func (c Client) NewSftp(opts ...sftp.ClientOption) (*sftp.Client, error) {
 	return sftp.NewClient(c.Client, opts...)
 }
@@ -134,20 +140,7 @@ func (c Client) Close() error {
 	return c.Client.Close()
 }
 
-func (c *Client) ftp() *sftp.Client {
-
-	if c.sftp == nil {
-		sftp, err := c.NewSftp()
-		if err != nil {
-			panic(err)
-		}
-		c.sftp = sftp
-	}
-
-	return c.sftp
-}
-
-// Upload a local file to remote machine!
+// Upload a local file to remote server!
 func (c Client) Upload(localPath string, remotePath string) (err error) {
 
 	local, err := os.Open(localPath)
@@ -170,7 +163,7 @@ func (c Client) Upload(localPath string, remotePath string) (err error) {
 	return
 }
 
-// Download file from remote machine!
+// Download file from remote server!
 func (c Client) Download(remotePath string, localPath string) (err error) {
 
 	local, err := os.Create(localPath)
@@ -194,4 +187,18 @@ func (c Client) Download(remotePath string, localPath string) (err error) {
 	}
 
 	return local.Sync()
+}
+
+// get sftp client if not set.
+func (c *Client) ftp() *sftp.Client {
+
+	if c.sftp == nil {
+		sftp, err := c.NewSftp()
+		if err != nil {
+			panic(err)
+		}
+		c.sftp = sftp
+	}
+
+	return c.sftp
 }

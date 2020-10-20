@@ -12,22 +12,22 @@ import (
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
+// Default known hosts path.
 var defaultPath = os.ExpandEnv("$HOME/.ssh/known_hosts")
 
-// Use default known hosts files to verify host public key.
+// DefaultKnownHosts returns host key callback from default known hosts path, and error if any.
 func DefaultKnownHosts() (ssh.HostKeyCallback, error) {
 	return KnownHosts(defaultPath)
 }
 
-// Get known hosts callback from a custom path.
+// KnownHosts returns host key callback from a custom known hosts path.
 func KnownHosts(file string) (ssh.HostKeyCallback, error) {
 	return knownhosts.New(file)
 }
 
-// Check is host in known hosts file.
-// It returns is the host found in known_hosts file and error,
-// If the host found in known_hosts file and error not nil that means public key mismatch, Maybe
-// MAN IN THE MIDDLE ATTACK! you should not handshake.
+// CheckKnownHost checks is host in known hosts file.
+// it returns is the host found in known_hosts file and error, if the host found in
+// known_hosts file and error not nil that means public key mismatch, maybe MAN IN THE MIDDLE ATTACK! you should not handshake.
 func CheckKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile string) (found bool, err error) {
 
 	var keyErr *knownhosts.KeyError
@@ -67,7 +67,7 @@ func CheckKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile s
 	return false, nil
 }
 
-// Add a host to knows hosts
+// AddKnownHost adda a host to known hosts file.
 func AddKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile string) (err error) {
 
 	// Fallback to default known_hosts file
