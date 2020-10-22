@@ -6,6 +6,7 @@
     <h4 align="center">
 	   Fast and easy golang ssh client module.
 	</h4>
+    <p>Goph is a lightweight Go SSH client focusing on simplicity!</p>
 </div>
 
 <p align="center">
@@ -17,15 +18,17 @@
 </p>
 
 
-## Installation
+## 🚀&nbsp; Installation and Documentation
 
 ```bash
 go get github.com/melbahja/goph
 ```
 
-## Features
+You can find the docs at [go docs](https://pkg.go.dev/github.com/melbahja/goph).
 
-- Easy to use.
+## 🤘&nbsp; Features
+
+- Easy to use and **simple API**.
 - Supports **known hosts** by default.
 - Supports connections with **passwords**.
 - Supports connections with **private keys**.
@@ -34,8 +37,9 @@ go get github.com/melbahja/goph
 - Supports **download** files from remote to local.
 - Supports connections with **ssh agent** (Unix systems only).
 - Supports adding new hosts to **known_hosts file**.
+- Supports **file system operations** like: `Open, Create, Chmod...`
 
-## Usage
+## 📄&nbsp; Usage
 
 Run a command via ssh:
 ```go
@@ -71,47 +75,90 @@ func main() {
 }
 ```
 
-##### Start connection with protected private key:
+#### 🔐 Start Connection With Protected Private Key:
 ```go
 client, err := goph.New("root", "192.1.1.3", goph.Key("/home/mohamed/.ssh/id_rsa", "you_passphrase_here"))
 ```
 
-##### Start connection with password:
+#### 🔑 Start Connection With Password:
 ```go
 client, err := goph.New("root", "192.1.1.3", goph.Password("you_password_here"))
 ```
 
-##### Start connection with ssh agent (Unix systems only):
+#### ☛ Start Connection With SSH Agent (Unix systems only):
 ```go
 client, err := goph.New("root", "192.1.1.3", goph.UseAgent())
 ```
 
-##### Upload local file to remote:
+#### ⤴️ Upload Local File to Remote:
 ```go
 err := client.Upload("/path/to/local/file", "/path/to/remote/file")
 ```
 
-##### Download remote file to local:
+#### ⤵️ Download Remote File to Local:
 ```go
 err := client.Download("/path/to/remote/file", "/path/to/local/file")
 ```
 
-##### Execute bash commands:
+#### ☛ Execute Bash Commands:
 ```go
 out, err := client.Run("bash -c 'printenv'")
 ```
 
-##### Execute bash command with env variables:
+#### ☛ Execute Bash Command With Env Variables:
 ```go
 out, err := client.Run(`env MYVAR="MY VALUE" bash -c 'echo $MYVAR;'`)
 ```
 
-For more read the [go docs](https://pkg.go.dev/github.com/melbahja/goph).
+#### 🥪 Using Goph Cmd:
 
-## Examples
+`Goph.Cmd` struct is like the Go standard `os/exec.Cmd`.
+
+```go
+// Get new `Goph.Cmd`
+cmd, err := client.Cmd("ls", "-alh", "/tmp")
+
+if err != nil {
+	// handle the error!
+}
+
+// You can set env vars, but the server must be configured to `AcceptEnv line`.
+cmd.Env = []string{"MY_VAR=MYVALUE"}
+
+// Run you command.
+err = cmd.Run()
+```
+
+🗒️ Just like `os/exec.Cmd` you can run `CombinedOutput, Output, Start, Wait`, and [`ssh.Session`](https://pkg.go.dev/golang.org/x/crypto/ssh#Session) methods like `Signal`...
+
+#### 📂 File System Operations Via SFTP:
+
+You can easily get a [SFTP](https://github.com/pkg/sftp) client from Goph client:
+```go
+
+sftp, err := client.NewSftp()
+
+if err != nil {
+	// handle the error!
+}
+
+file, err := sftp.Create("/tmp/remote_file")
+
+file.Write([]byte(`Hello world`))
+file.Close()
+
+```
+🗒️ For more file operations see [SFTP Docs](https://github.com/pkg/sftp).
+
+
+## 🥙&nbsp; Examples
 
 See [Examples](https://github.com/melbahja/ssh/blob/master/examples).
 
-## License
+## 🤝&nbsp; Missing a Feature?
+
+Feel free to open a new issue, or contact me.
+
+## 📘&nbsp; License
 
 Goph is provided under the [MIT License](https://github.com/melbahja/goph/blob/master/LICENSE).
