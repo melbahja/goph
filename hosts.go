@@ -58,7 +58,7 @@ func CheckKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile s
 		return true, keyErr
 	}
 
-	// Some other error occured and safest way to handle is to pass it back to user.
+	// Some other error occurred and safest way to handle is to pass it back to user.
 	if err != nil {
 		return false, err
 	}
@@ -67,7 +67,7 @@ func CheckKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile s
 	return false, nil
 }
 
-// AddKnownHost adda a host to known hosts file.
+// AddKnownHost add a a host to known hosts file.
 func AddKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile string) (err error) {
 
 	// Fallback to default known_hosts file

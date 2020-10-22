@@ -22,16 +22,16 @@ type Cmd struct {
 	// Session env vars.
 	Env []string
 
-	// ssh session.
+	// SSH session.
 	*ssh.Session
 }
 
-// CombinedOutput runs cmd on the remote host and returns its combined standard output and standard error.
+// CombinedOutput runs cmd on the remote host and returns its combined stdout and stderr.
 func (c *Cmd) CombinedOutput() ([]byte, error) {
 	return c.init().Session.CombinedOutput(c.String())
 }
 
-// Output runs cmd on the remote host and returns its standard output.
+// Output runs cmd on the remote host and returns its stdout.
 func (c *Cmd) Output() ([]byte, error) {
 	return c.init().Session.Output(c.String())
 }
@@ -51,7 +51,7 @@ func (c *Cmd) String() string {
 	return fmt.Sprintf("%s %s", c.Path, strings.Join(c.Args, " "))
 }
 
-// init inits Cmd.Env vars.
+// Init inits and sets session env vars.
 func (c *Cmd) init() *Cmd {
 
 	// Set session env vars

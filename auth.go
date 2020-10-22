@@ -13,16 +13,17 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 )
 
+// Auth represents ssh auth methods.
 type Auth []ssh.AuthMethod
 
-// Get auth method from raw password.
+// Password returns password auth method.
 func Password(pass string) Auth {
 	return Auth{
 		ssh.Password(pass),
 	}
 }
 
-// Get auth method from private key with or without passphrase.
+// Key returns auth method from private key with or without passphrase.
 func Key(prvFile string, passphrase string) Auth {
 
 	signer, err := GetSigner(prvFile, passphrase)
@@ -36,6 +37,7 @@ func Key(prvFile string, passphrase string) Auth {
 	}
 }
 
+// HasAgent checks if ssh agent exists.
 func HasAgent() bool {
 	return os.Getenv("SSH_AUTH_SOCK") != ""
 }
@@ -51,7 +53,7 @@ func UseAgent() Auth {
 	}
 }
 
-// Get private key signer.
+// GetSigner returns ssh signer from private key file.
 func GetSigner(prvFile string, passphrase string) (ssh.Signer, error) {
 
 	var (
