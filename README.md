@@ -116,7 +116,7 @@ out, err := client.Run(`env MYVAR="MY VALUE" bash -c 'echo $MYVAR;'`)
 
 ```go
 // Get new `Goph.Cmd`
-cmd, err := client.Cmd("ls", "-alh", "/tmp")
+cmd, err := client.Command("ls", "-alh", "/tmp")
 
 if err != nil {
 	// handle the error!
