@@ -6,6 +6,7 @@ package goph
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// A Client represents Goph client.
+// Client represents Goph client.
 type Client struct {
 	*ssh.Client
 	Config *Config
@@ -30,7 +31,7 @@ type Config struct {
 	Callback ssh.HostKeyCallback
 }
 
-// DefaultTimeout represents connection timeout.
+// DefaultTimeout is the timeout of ssh client connection.
 var DefaultTimeout = 20 * time.Second
 
 // New starts a new ssh connection, the host public key must be in known hosts.
@@ -81,7 +82,7 @@ func NewConn(config *Config) (c *Client, err error) {
 
 // Dial starts a client connection to SSH server based on config.
 func Dial(proto string, c *Config) (*ssh.Client, error) {
-	return ssh.Dial(proto, fmt.Sprintf("%s:%d", c.Addr, c.Port), &ssh.ClientConfig{
+	return ssh.Dial(proto, net.JoinHostPort(c.Addr, fmt.Sprint(c.Port)), &ssh.ClientConfig{
 		User:            c.User,
 		Auth:            c.Auth,
 		Timeout:         c.Timeout,
@@ -89,7 +90,7 @@ func Dial(proto string, c *Config) (*ssh.Client, error) {
 	})
 }
 
-// Run runs a command over client connection.
+// Run starts a new SSH session and runs the cmd, it returns CombinedOutput and err if any.
 func (c Client) Run(cmd string) ([]byte, error) {
 
 	var (
