@@ -99,9 +99,11 @@ func main() {
 
 	flag.Parse()
 
+	var err error
+
 	if agent || goph.HasAgent() {
 
-		auth = goph.UseAgent()
+		auth, err = goph.UseAgent()
 
 	} else if pass {
 
@@ -109,7 +111,11 @@ func main() {
 
 	} else {
 
-		auth = goph.Key(key, getPassphrase(passphrase))
+		auth, err = goph.Key(key, getPassphrase(passphrase))
+	}
+
+	if err != nil {
+		panic(err)
 	}
 
 	client, err = goph.NewConn(&goph.Config{

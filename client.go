@@ -152,7 +152,12 @@ func (c Client) Upload(localPath string, remotePath string) (err error) {
 
 	defer local.Close()
 
-	remote, err := c.ftp().Create(remotePath)
+	ftp, err := c.ftp()
+	if err != nil {
+		return
+	}
+
+	remote, err := ftp.Create(remotePath)
 
 	if err != nil {
 		return
@@ -175,7 +180,12 @@ func (c Client) Download(remotePath string, localPath string) (err error) {
 
 	defer local.Close()
 
-	remote, err := c.ftp().Open(remotePath)
+	ftp, err := c.ftp()
+	if err != nil {
+		return
+	}
+
+	remote, err := ftp.Open(remotePath)
 
 	if err != nil {
 		return
@@ -191,15 +201,15 @@ func (c Client) Download(remotePath string, localPath string) (err error) {
 }
 
 // get sftp client if not set.
-func (c *Client) ftp() *sftp.Client {
+func (c *Client) ftp() (*sftp.Client, error) {
 
 	if c.sftp == nil {
 		sftp, err := c.NewSftp()
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		c.sftp = sftp
 	}
 
-	return c.sftp
+	return c.sftp, nil
 }
