@@ -279,7 +279,11 @@ loop:
 
 		default:
 
-			out, err = client.Run(cmd)
+			command, err := client.Command(parts[0], parts[1:]...)
+			if err != nil {
+				panic(err)
+			}
+			out, err = command.CombinedOutput()
 			fmt.Println(string(out), err)
 		}
 
