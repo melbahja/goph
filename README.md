@@ -1,20 +1,20 @@
 <div align="center">
 	<h1>Golang SSH Client.</h1>
-    <a href="https://github.com/melbahja/goph">
-        <img src="https://github.com/melbahja/goph/raw/master/.github/goph.png" width="200">
-    </a>
-    <h4 align="center">
-	   Fast and easy golang ssh client module.
+	<a href="https://github.com/melbahja/goph">
+		<img src="https://github.com/melbahja/goph/raw/master/.github/goph.png" width="200">
+	</a>
+	<h4 align="center">
+		Fast and easy golang ssh client module.
 	</h4>
-    <p>Goph is a lightweight Go SSH client focusing on simplicity!</p>
+	<p>Goph is a lightweight Go SSH client focusing on simplicity!</p>
 </div>
 
 <p align="center">
-    <a href="#installation">Installation</a> ❘
-    <a href="#features">Features</a> ❘
-    <a href="#usage">Usage</a> ❘
-    <a href="#examples">Examples</a> ❘
-    <a href="#license">License</a>
+	<a href="#installation">Installation</a> ❘
+	<a href="#features">Features</a> ❘
+	<a href="#usage">Usage</a> ❘
+	<a href="#examples">Examples</a> ❘
+	<a href="#license">License</a>
 </p>
 
 
@@ -54,8 +54,12 @@ import (
 func main() {
 
 	// Start new ssh connection with private key.
-	client, err := goph.New("root", "192.1.1.3", goph.Key("/home/mohamed/.ssh/id_rsa", ""))
+	auth, err := goph.Key("/home/mohamed/.ssh/id_rsa", "")
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	client, err := goph.New("root", "192.1.1.3", auth)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -77,7 +81,12 @@ func main() {
 
 #### 🔐 Start Connection With Protected Private Key:
 ```go
-client, err := goph.New("root", "192.1.1.3", goph.Key("/home/mohamed/.ssh/id_rsa", "you_passphrase_here"))
+auth, err := goph.Key("/home/mohamed/.ssh/id_rsa", "you_passphrase_here")
+if err != nil {
+	// handle error
+}
+
+client, err := goph.New("root", "192.1.1.3", auth)
 ```
 
 #### 🔑 Start Connection With Password:
@@ -87,7 +96,12 @@ client, err := goph.New("root", "192.1.1.3", goph.Password("you_password_here"))
 
 #### ☛ Start Connection With SSH Agent (Unix systems only):
 ```go
-client, err := goph.New("root", "192.1.1.3", goph.UseAgent())
+auth, err := goph.UseAgent()
+if err != nil {
+	// handle error
+}
+
+client, err := goph.New("root", "192.1.1.3", auth)
 ```
 
 #### ⤴️ Upload Local File to Remote:

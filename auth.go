@@ -24,17 +24,17 @@ func Password(pass string) Auth {
 }
 
 // Key returns auth method from private key with or without passphrase.
-func Key(prvFile string, passphrase string) Auth {
+func Key(prvFile string, passphrase string) (Auth, error) {
 
 	signer, err := GetSigner(prvFile, passphrase)
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	return Auth{
 		ssh.PublicKeys(signer),
-	}
+	}, nil
 }
 
 // HasAgent checks if ssh agent exists.
@@ -43,14 +43,14 @@ func HasAgent() bool {
 }
 
 // UseAgent auth via ssh agent, (Unix systems only)
-func UseAgent() Auth {
+func UseAgent() (Auth, error) {
 	sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK"))
 	if err != nil {
-		panic(fmt.Errorf("could not find ssh agent: %w", err))
+		return nil, fmt.Errorf("could not find ssh agent: %w", err)
 	}
 	return Auth{
 		ssh.PublicKeysCallback(agent.NewClient(sshAgent).Signers),
-	}
+	}, nil
 }
 
 // GetSigner returns ssh signer from private key file.

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -28,22 +29,34 @@ type Cmd struct {
 
 // CombinedOutput runs cmd on the remote host and returns its combined stdout and stderr.
 func (c *Cmd) CombinedOutput() ([]byte, error) {
-	return c.init().Session.CombinedOutput(c.String())
+	if err := c.init(); err != nil {
+		return nil, errors.Wrap(err, "cmd init")
+	}
+	return c.Session.CombinedOutput(c.String())
 }
 
 // Output runs cmd on the remote host and returns its stdout.
 func (c *Cmd) Output() ([]byte, error) {
-	return c.init().Session.Output(c.String())
+	if err := c.init(); err != nil {
+		return nil, errors.Wrap(err, "cmd init")
+	}
+	return c.Session.Output(c.String())
 }
 
 // Run runs cmd on the remote host.
 func (c *Cmd) Run() error {
-	return c.init().Session.Run(c.String())
+	if err := c.init(); err != nil {
+		return errors.Wrap(err, "cmd init")
+	}
+	return c.Session.Run(c.String())
 }
 
 // Start runs the command on the remote host.
 func (c *Cmd) Start() error {
-	return c.init().Session.Start(c.String())
+	if err := c.init(); err != nil {
+		return errors.Wrap(err, "cmd init")
+	}
+	return c.Session.Start(c.String())
 }
 
 // String return the command line string.
@@ -52,14 +65,16 @@ func (c *Cmd) String() string {
 }
 
 // Init inits and sets session env vars.
-func (c *Cmd) init() *Cmd {
+func (c *Cmd) init() (err error) {
 
 	// Set session env vars
 	var env []string
 	for _, value := range c.Env {
 		env = strings.Split(value, "=")
-		c.Setenv(env[0], strings.Join(env[1:], "="))
+		if err = c.Setenv(env[0], strings.Join(env[1:], "=")); err != nil {
+			return
+		}
 	}
 
-	return c
+	return nil
 }
