@@ -145,7 +145,6 @@ func (c Client) Close() error {
 func (c Client) Upload(localPath string, remotePath string) (err error) {
 
 	local, err := os.Open(localPath)
-
 	if err != nil {
 		return
 	}
@@ -158,11 +157,9 @@ func (c Client) Upload(localPath string, remotePath string) (err error) {
 	}
 
 	remote, err := ftp.Create(remotePath)
-
 	if err != nil {
 		return
 	}
-
 	defer remote.Close()
 
 	_, err = io.Copy(remote, local)
@@ -173,11 +170,9 @@ func (c Client) Upload(localPath string, remotePath string) (err error) {
 func (c Client) Download(remotePath string, localPath string) (err error) {
 
 	local, err := os.Create(localPath)
-
 	if err != nil {
 		return
 	}
-
 	defer local.Close()
 
 	ftp, err := c.ftp()
@@ -186,11 +181,9 @@ func (c Client) Download(remotePath string, localPath string) (err error) {
 	}
 
 	remote, err := ftp.Open(remotePath)
-
 	if err != nil {
 		return
 	}
-
 	defer remote.Close()
 
 	if _, err = io.Copy(local, remote); err != nil {
