@@ -5,19 +5,24 @@ package goph
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"os"
+	"os/user"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-// Default known hosts path.
-var defaultPath = os.ExpandEnv("$HOME/.ssh/known_hosts")
-
 // DefaultKnownHosts returns host key callback from default known hosts path, and error if any.
 func DefaultKnownHosts() (ssh.HostKeyCallback, error) {
-	return KnownHosts(defaultPath)
+
+	path, err := DefaultKnownHostsPath()
+	if err != nil {
+		return nil, err
+	}
+
+	return KnownHosts(path)
 }
 
 // KnownHosts returns host key callback from a custom known hosts path.
@@ -34,7 +39,12 @@ func CheckKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile s
 
 	// Fallback to default known_hosts file
 	if knownFile == "" {
-		knownFile = defaultPath
+		path, err := DefaultKnownHostsPath()
+		if err != nil {
+			return false, err
+		}
+
+		knownFile = path
 	}
 
 	// Get host key callback
@@ -72,11 +82,15 @@ func AddKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile str
 
 	// Fallback to default known_hosts file
 	if knownFile == "" {
-		knownFile = defaultPath
+		path, err := DefaultKnownHostsPath()
+		if err != nil {
+			return err
+		}
+
+		knownFile = path
 	}
 
 	f, err := os.OpenFile(knownFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
-
 	if err != nil {
 		return err
 	}
@@ -88,4 +102,15 @@ func AddKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile str
 	_, err = f.WriteString(knownhosts.Line([]string{knownHost}, key) + "\n")
 
 	return err
+}
+
+// DefaultKnownHostsPath returns default user knows hosts file.
+func DefaultKnownHostsPath() (string, error) {
+
+	user, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s/.ssh/known_hosts", user.HomeDir), err
 }
