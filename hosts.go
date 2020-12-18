@@ -96,9 +96,15 @@ func AddKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile str
 
 	defer f.Close()
 
-	knownHost := knownhosts.Normalize(remote.String())
+	remoteNormalized := knownhosts.Normalize(remote.String())
+	hostNormalized := knownhosts.Normalize(host)
+	addresses := []string{remoteNormalized}
 
-	_, err = f.WriteString(knownhosts.Line([]string{knownHost}, key) + "\n")
+	if hostNormalized != remoteNormalized {
+		addresses = append(addresses, hostNormalized)
+	}
+
+	_, err = f.WriteString(knownhosts.Line(addresses, key) + "\n")
 
 	return err
 }
