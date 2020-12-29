@@ -18,7 +18,6 @@ import (
 type Client struct {
 	*ssh.Client
 	Config *Config
-	sftp   *sftp.Client
 }
 
 // Config for Client.
@@ -133,11 +132,6 @@ func (c Client) NewSftp(opts ...sftp.ClientOption) (*sftp.Client, error) {
 
 // Close client net connection.
 func (c Client) Close() error {
-
-	if c.sftp != nil {
-		c.sftp.Close()
-	}
-
 	return c.Client.Close()
 }
 
@@ -148,13 +142,13 @@ func (c Client) Upload(localPath string, remotePath string) (err error) {
 	if err != nil {
 		return
 	}
-
 	defer local.Close()
 
-	ftp, err := c.ftp()
+	ftp, err := c.NewSftp()
 	if err != nil {
 		return
 	}
+	defer ftp.Close()
 
 	remote, err := ftp.Create(remotePath)
 	if err != nil {
@@ -175,10 +169,11 @@ func (c Client) Download(remotePath string, localPath string) (err error) {
 	}
 	defer local.Close()
 
-	ftp, err := c.ftp()
+	ftp, err := c.NewSftp()
 	if err != nil {
 		return
 	}
+	defer ftp.Close()
 
 	remote, err := ftp.Open(remotePath)
 	if err != nil {
@@ -191,18 +186,4 @@ func (c Client) Download(remotePath string, localPath string) (err error) {
 	}
 
 	return local.Sync()
-}
-
-// get sftp client if not set.
-func (c *Client) ftp() (*sftp.Client, error) {
-
-	if c.sftp == nil {
-		sftp, err := c.NewSftp()
-		if err != nil {
-			return nil, err
-		}
-		c.sftp = sftp
-	}
-
-	return c.sftp, nil
 }
