@@ -4,6 +4,7 @@
 package goph
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -106,6 +107,16 @@ func (c Client) Run(cmd string) ([]byte, error) {
 	return sess.CombinedOutput(cmd)
 }
 
+// Run starts a new SSH session with context and runs the cmd. It returns CombinedOutput and err if any.
+func (c Client) RunContext(ctx context.Context, name string) ([]byte, error) {
+	cmd, err := c.CommandContext(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	return cmd.CombinedOutput()
+}
+
 // Command returns new Cmd and error if any.
 func (c Client) Command(name string, args ...string) (*Cmd, error) {
 
@@ -122,7 +133,20 @@ func (c Client) Command(name string, args ...string) (*Cmd, error) {
 		Path:    name,
 		Args:    args,
 		Session: sess,
+		Context: context.Background(),
 	}, nil
+}
+
+// Command returns new Cmd with context and error, if any.
+func (c Client) CommandContext(ctx context.Context, name string, args ...string) (*Cmd, error) {
+	cmd, err := c.Command(name, args...)
+	if err != nil {
+		return cmd, err
+	}
+
+	cmd.Context = ctx
+
+	return cmd, nil
 }
 
 // NewSftp returns new sftp client and error if any.
