@@ -4,11 +4,11 @@
 package goph
 
 import (
+	"context"
 	"fmt"
-	"strings"
-
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
+	"strings"
 )
 
 // Cmd it's like os/exec.Cmd but for ssh session.
@@ -25,6 +25,9 @@ type Cmd struct {
 
 	// SSH session.
 	*ssh.Session
+
+	// Context for cancellation
+	Context context.Context
 }
 
 // CombinedOutput runs cmd on the remote host and returns its combined stdout and stderr.
@@ -32,7 +35,10 @@ func (c *Cmd) CombinedOutput() ([]byte, error) {
 	if err := c.init(); err != nil {
 		return nil, errors.Wrap(err, "cmd init")
 	}
-	return c.Session.CombinedOutput(c.String())
+
+	return c.runWithContext(func() ([]byte, error) {
+		return c.Session.CombinedOutput(c.String())
+	})
 }
 
 // Output runs cmd on the remote host and returns its stdout.
@@ -40,7 +46,10 @@ func (c *Cmd) Output() ([]byte, error) {
 	if err := c.init(); err != nil {
 		return nil, errors.Wrap(err, "cmd init")
 	}
-	return c.Session.Output(c.String())
+
+	return c.runWithContext(func() ([]byte, error) {
+		return c.Session.Output(c.String())
+	})
 }
 
 // Run runs cmd on the remote host.
@@ -48,7 +57,12 @@ func (c *Cmd) Run() error {
 	if err := c.init(); err != nil {
 		return errors.Wrap(err, "cmd init")
 	}
-	return c.Session.Run(c.String())
+
+	_, err := c.runWithContext(func() ([]byte, error) {
+		return nil, c.Session.Run(c.String())
+	})
+
+	return err
 }
 
 // Start runs the command on the remote host.
@@ -77,4 +91,29 @@ func (c *Cmd) init() (err error) {
 	}
 
 	return nil
+}
+
+// Executes the given callback within session. Sends SIGINT when the context is canceled.
+func (c *Cmd) runWithContext(callback func() ([]byte, error)) ([]byte, error) {
+	type commandOutput struct {
+		output []byte
+		err    error
+	}
+	outputChan := make(chan commandOutput)
+	go func() {
+		output, err := callback()
+		outputChan <- commandOutput{
+			output: output,
+			err:    err,
+		}
+	}()
+
+	select {
+	case <-c.Context.Done():
+		_ = c.Session.Signal(ssh.SIGINT)
+
+		return nil, c.Context.Err()
+	case result := <-outputChan:
+		return result.output, result.err
+	}
 }

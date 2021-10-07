@@ -38,6 +38,7 @@ You can find the docs at [go docs](https://pkg.go.dev/github.com/melbahja/goph).
 - Supports connections with **ssh agent** (Unix systems only).
 - Supports adding new hosts to **known_hosts file**.
 - Supports **file system operations** like: `Open, Create, Chmod...`
+- Supports **context.Context** for command cancellation.
 
 ## 📄&nbsp; Usage
 
@@ -119,6 +120,14 @@ err := client.Download("/path/to/remote/file", "/path/to/local/file")
 out, err := client.Run("bash -c 'printenv'")
 ```
 
+#### ☛ Execute Bash Command with timeout:
+```go
+context, cancel := context.WithTimeout(ctx, time.Second)
+defer cancel()
+// will send SIGINT and return error after 1 second
+out, err := client.RunContext(ctx, "sleep 5")
+```
+
 #### ☛ Execute Bash Command With Env Variables:
 ```go
 out, err := client.Run(`env MYVAR="MY VALUE" bash -c 'echo $MYVAR;'`)
@@ -131,6 +140,9 @@ out, err := client.Run(`env MYVAR="MY VALUE" bash -c 'echo $MYVAR;'`)
 ```go
 // Get new `Goph.Cmd`
 cmd, err := client.Command("ls", "-alh", "/tmp")
+
+// or with context:
+// cmd, err := client.CommandContext(ctx, "ls", "-alh", "/tmp")
 
 if err != nil {
 	// handle the error!
