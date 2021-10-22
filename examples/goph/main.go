@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -223,6 +224,8 @@ func playWithSSHJustForTestingThisProgram(client *goph.Client) {
 	fmt.Println("Type your shell command and enter.")
 	fmt.Println("To download file from remote type: download remote/path local/path")
 	fmt.Println("To upload file to remote type: upload local/path remote/path")
+	fmt.Println("To read from remote file, type: read-file remote/path")
+	fmt.Println("To write to remote file, type: write-file remote/path file-contents")
 	fmt.Println("To create a remote dir type: mkdirall /path/to/remote/newdir")
 	fmt.Println("To exit type: exit")
 
@@ -276,6 +279,37 @@ loop:
 			err = client.Upload(parts[1], parts[2])
 
 			fmt.Println("upload err: ", err)
+			break
+
+		case "read-file":
+			if len(parts) != 2 {
+				fmt.Println("please provide a path to read from")
+				continue loop
+			}
+
+			var target bytes.Buffer
+			err = client.ReadFile(parts[1], &target)
+			if err != nil {
+				fmt.Println("read file err: ", err)
+			} else {
+				fmt.Println(target.String())
+			}
+
+			break
+
+		case "write-file":
+			if len(parts) != 3 {
+				fmt.Println("please provide a path to write to, and a text to write (no spaces)")
+				continue loop
+			}
+
+			err = client.WriteFile(parts[1], strings.NewReader(parts[2]))
+			if err != nil {
+				fmt.Println("write file err: ", err)
+			} else {
+				fmt.Printf("text '%s' written to %s\n", parts[2], parts[1])
+			}
+
 			break
 
 		case "mkdirall":
