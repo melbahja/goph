@@ -93,16 +93,18 @@ func (c *Cmd) init() (err error) {
 	return nil
 }
 
+// Command with context output.
+type ctxCmdOutput struct {
+	output []byte
+	err    error
+}
+
 // Executes the given callback within session. Sends SIGINT when the context is canceled.
 func (c *Cmd) runWithContext(callback func() ([]byte, error)) ([]byte, error) {
-	type commandOutput struct {
-		output []byte
-		err    error
-	}
-	outputChan := make(chan commandOutput)
+	outputChan := make(chan ctxCmdOutput)
 	go func() {
 		output, err := callback()
-		outputChan <- commandOutput{
+		outputChan <- ctxCmdOutput{
 			output: output,
 			err:    err,
 		}
