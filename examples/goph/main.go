@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/melbahja/goph"
 	"github.com/pkg/sftp"
@@ -28,8 +30,10 @@ import (
 // Run command and auth with private key and passphrase:
 // > go run main.go --ip 192.168.122.102 --passphrase --cmd ls
 //
+// Run a command and interrupt it after 1 second:
+// > go run main.go --ip 192.168.122.102 --cmd "sleep 10" --timeout=1s
 //
-// You can test with the interactive mode without passing --cmd falg.
+// You can test with the interactive mode without passing --cmd flag.
 //
 
 var (
@@ -43,6 +47,7 @@ var (
 	cmd        string
 	pass       bool
 	passphrase bool
+	timeout    time.Duration
 	agent      bool
 	sftpc      *sftp.Client
 )
@@ -57,6 +62,7 @@ func init() {
 	flag.BoolVar(&pass, "pass", false, "ask for ssh password instead of private key.")
 	flag.BoolVar(&agent, "agent", false, "use ssh agent for authentication (unix systems only).")
 	flag.BoolVar(&passphrase, "passphrase", false, "ask for private key passphrase.")
+	flag.DurationVar(&timeout, "timeout", 0, "interrupt a command with SIGINT after a given timeout (0 means no timeout)")
 }
 
 func VerifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
@@ -135,8 +141,15 @@ func main() {
 
 	// If the cmd flag exists
 	if cmd != "" {
+		ctx := context.Background()
+		// create a context with timeout, if supplied in the argumetns
+		if timeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
 
-		out, err := client.Run(cmd)
+		out, err := client.RunContext(ctx, cmd)
 
 		fmt.Println(string(out), err)
 		return
