@@ -45,20 +45,22 @@ func New(user string, addr string, auth Auth) (c *Client, err error) {
 		return
 	}
 
-	l := strings.Split(addr, ":")
-	if len(l) == 1 {
-		l = append(l, "22")
-	}
-	addr = l[0]
-	port_int, err := strconv.Atoi(l[1])
+	host, port_str, err := net.SplitHostPort(addr)
 	if err != nil {
-		panic(err)
+		return
+	}
+	if len(port_str) == 0 {
+		port_str = "22"
+	}
+	port_int, err := strconv.Atoi(port_str)
+	if err != nil {
+		return
 	}
 	port := uint(port_int)
 
 	c, err = NewConn(&Config{
 		User:     user,
-		Addr:     addr,
+		Addr:     host,
 		Port:     port,
 		Auth:     auth,
 		Timeout:  DefaultTimeout,
