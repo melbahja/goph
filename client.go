@@ -5,10 +5,12 @@ package goph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -29,10 +31,16 @@ type Config struct {
 	Port     uint
 	Timeout  time.Duration
 	Callback ssh.HostKeyCallback
+	Pass     string
 }
 
 // DefaultTimeout is the timeout of ssh client connection.
 var DefaultTimeout = 20 * time.Second
+
+// Set sudo password
+func (client *Client) SetPass(pass string) {
+	client.Config.Pass = pass
+}
 
 // New starts a new ssh connection, the host public key must be in known hosts.
 func New(user string, addr string, auth Auth) (c *Client, err error) {
@@ -92,7 +100,15 @@ func Dial(proto string, c *Config) (*ssh.Client, error) {
 
 // Run starts a new SSH session and runs the cmd, it returns CombinedOutput and err if any.
 func (c Client) Run(cmd string) ([]byte, error) {
-
+	if strings.HasPrefix(cmd, "sudo") {
+		if c.Config.Pass == "" {
+			return nil, errors.New("Config.Pass is not set")
+		}
+		// if c.Config.Pass {}
+		/// you have to run sudo commands like this:
+		/// echo '[password]' | sudo -S [command]
+		cmd = "echo " + c.Config.Pass + "| sudo -S " + cmd[5:]
+	}
 	var (
 		err  error
 		sess *ssh.Session
