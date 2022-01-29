@@ -6,9 +6,10 @@ package goph
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
-	"strings"
 )
 
 // Cmd it's like os/exec.Cmd but for ssh session.
