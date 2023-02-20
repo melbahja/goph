@@ -9,6 +9,8 @@ import (
 	"log"
 	"net"
 	"os"
+	osuser "os/user"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -53,11 +55,16 @@ var (
 )
 
 func init() {
+	usr, err := osuser.Current()
+	if err != nil {
+		fmt.Println("couldn't determine current user.  defaulting to 'root'")
+		usr.Username = "root"
+	}
 
 	flag.StringVar(&addr, "ip", "127.0.0.1", "machine ip address.")
-	flag.StringVar(&user, "user", "root", "ssh user.")
+	flag.StringVar(&user, "user", usr.Username, "ssh user.")
 	flag.UintVar(&port, "port", 22, "ssh port number.")
-	flag.StringVar(&key, "key", strings.Join([]string{os.Getenv("HOME"), ".ssh", "id_rsa"}, "/"), "private key path.")
+	flag.StringVar(&key, "key", filepath.Join(os.Getenv("HOME"), ".ssh", "id_rsa"), "private key path.")
 	flag.StringVar(&cmd, "cmd", "", "command to run.")
 	flag.BoolVar(&pass, "pass", false, "ask for ssh password instead of private key.")
 	flag.BoolVar(&agent, "agent", false, "use ssh agent for authentication (unix systems only).")
