@@ -37,6 +37,17 @@ func Key(prvFile string, passphrase string) (Auth, error) {
 	}, nil
 }
 
+func RawKey(privateKey string, passphrase string) (Auth, error) {
+	signer, err := GetSignerForRawKey([]byte(privateKey), passphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	return Auth{
+		ssh.PublicKeys(signer),
+	}, nil
+}
+
 // HasAgent checks if ssh agent exists.
 func HasAgent() bool {
 	return os.Getenv("SSH_AUTH_SOCK") != ""
@@ -62,6 +73,30 @@ func GetSigner(prvFile string, passphrase string) (ssh.Signer, error) {
 	)
 
 	privateKey, err := ioutil.ReadFile(prvFile)
+
+	if err != nil {
+
+		return nil, err
+
+	} else if passphrase != "" {
+
+		signer, err = ssh.ParsePrivateKeyWithPassphrase(privateKey, []byte(passphrase))
+
+	} else {
+
+		signer, err = ssh.ParsePrivateKey(privateKey)
+	}
+
+	return signer, err
+}
+
+// GetSigner returns ssh signer from private key file.
+func GetSignerForRawKey(privateKey []byte, passphrase string) (ssh.Signer, error) {
+
+	var (
+		err    error
+		signer ssh.Signer
+	)
 
 	if err != nil {
 
