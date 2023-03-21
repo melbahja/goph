@@ -5,6 +5,7 @@ package goph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -212,4 +213,30 @@ func (c Client) Download(remotePath string, localPath string) (err error) {
 	}
 
 	return local.Sync()
+}
+
+// CreateDir create dir if not exist
+func (c Client) CreateDir(path string) {
+	c.Run(fmt.Sprintf("mkdir -p %v", path))
+}
+
+// CreateFile create file on remote host
+func (c Client) CreateFile(path, content string) ([]byte, error) {
+	if path == "" || content == "" {
+		return nil, errors.New("empty path or content")
+	}
+	return c.Run(fmt.Sprintf("cat > %s << EOF\n%s\nEOF", path, content))
+}
+
+// CopyFile copy local file to remote host
+func (c Client) CopyFile(src, dst string) ([]byte, error) {
+	if src == "" || dst == "" {
+		return nil, errors.New("empty src or dst file")
+	}
+
+	content, err := os.ReadFile(src)
+	if err != nil {
+		return nil, err
+	}
+	return c.CreateFile(dst, string(content))
 }
