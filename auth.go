@@ -39,7 +39,6 @@ func Key(prvFile string, passphrase string) (Auth, error) {
 }
 
 func RawKey(privateKey string, passphrase string) (Auth, error) {
-	fmt.Printf("================got key %s", privateKey)
 	signer, err := GetSignerForRawKey([]byte(privateKey), passphrase)
 	if err != nil {
 		return nil, err
@@ -100,8 +99,6 @@ func GetSignerForRawKey(privateKey []byte, passphrase string) (ssh.Signer, error
 		signer ssh.Signer
 	)
 
-	// fmt.Printf("================= got error %e", err)
-	log.Printf("======================dd %s", privateKey)
 	log.Fatal(err)
 
 	if err != nil {

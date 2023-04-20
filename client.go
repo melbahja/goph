@@ -4,6 +4,7 @@
 package goph
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -107,6 +108,27 @@ func (c Client) Run(cmd string) ([]byte, error) {
 	defer sess.Close()
 
 	return sess.CombinedOutput(cmd)
+}
+
+// Run starts a new SSH session and runs the cmd, it returns CombinedOutput and err if any.
+func (c Client) Script(script string) (*Cmd, error) {
+
+	var (
+		err  error
+		sess *ssh.Session
+	)
+
+	if sess, err = c.NewSession(); err != nil {
+		return nil, err
+	}
+
+	sess.Stdin = bytes.NewBufferString(script + "\n")
+	return &Cmd{
+		Path:    "",
+		Args:    []string{},
+		Session: sess,
+		Context: context.Background(),
+	}, nil
 }
 
 // Run starts a new SSH session with context and runs the cmd. It returns CombinedOutput and err if any.
