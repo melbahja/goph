@@ -4,11 +4,22 @@
 package goph
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"strings"
+
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
-	"strings"
+)
+
+type remoteScriptType byte
+
+const (
+	cmdLine remoteScriptType = iota
+	rawScript
+	scriptFile
 )
 
 // Cmd it's like os/exec.Cmd but for ssh session.
@@ -28,6 +39,15 @@ type Cmd struct {
 
 	// Context for cancellation
 	Context context.Context
+
+	_type remoteScriptType
+
+	script *bytes.Buffer
+
+	// scriptFile string
+
+	stdout io.Writer
+	stderr io.Writer
 }
 
 // CombinedOutput runs cmd on the remote host and returns its combined stdout and stderr.
@@ -50,6 +70,73 @@ func (c *Cmd) Output() ([]byte, error) {
 	return c.runWithContext(func() ([]byte, error) {
 		return c.Session.Output(c.String())
 	})
+}
+
+// Output runs cmd on the remote host and returns its stdout.
+func (c *Cmd) RawOutput() ([]byte, error) {
+	if err := c.init(); err != nil {
+		return nil, errors.Wrap(err, "cmd init")
+	}
+	var out bytes.Buffer
+	c.stdout = &out
+	return c.runWithContext(func() ([]byte, error) {
+		return out.Bytes(), c.run()
+	})
+}
+
+func (c *Cmd) run() error {
+	if c._type == cmdLine {
+		return c.runCmds()
+	} else if c._type == rawScript {
+		return c.runScript()
+	} else if c._type == scriptFile {
+		return nil
+		// return c.runScriptFile()
+	} else {
+		return errors.New("Not supported RemoteScript type")
+	}
+}
+
+func (c *Cmd) runCmd(cmd string) error {
+	c.Session.Stdout = c.stdout
+	c.Session.Stderr = c.stderr
+
+	if err := c.Session.Run(cmd); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Cmd) runCmds() error {
+	for {
+		statment, err := c.script.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		if err := c.runCmd(statment); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Cmd) runScript() error {
+	c.Session.Stdin = c.script
+	c.Session.Stdout = c.stdout
+	c.Session.Stderr = c.stderr
+	if err := c.Session.Shell(); err != nil {
+		return err
+	}
+	if err := c.Session.Wait(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Run runs cmd on the remote host.

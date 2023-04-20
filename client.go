@@ -122,12 +122,13 @@ func (c Client) Script(script string) (*Cmd, error) {
 		return nil, err
 	}
 
-	sess.Stdin = bytes.NewBufferString(script + "\n")
 	return &Cmd{
 		Path:    "",
 		Args:    []string{},
 		Session: sess,
 		Context: context.Background(),
+		script:  bytes.NewBufferString(script + "\n"),
+		_type:   rawScript,
 	}, nil
 }
 
@@ -158,6 +159,8 @@ func (c Client) Command(name string, args ...string) (*Cmd, error) {
 		Args:    args,
 		Session: sess,
 		Context: context.Background(),
+		_type:   cmdLine,
+		script:  bytes.NewBufferString(name + "\n"),
 	}, nil
 }
 
