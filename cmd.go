@@ -50,6 +50,12 @@ type Cmd struct {
 	stderr io.Writer
 }
 
+func appendStringToBuffer(str string, buf bytes.Buffer) *bytes.Buffer {
+	parentStr := buf.String()
+	parentStr = fmt.Sprintf("%v \n %v", str, parentStr)
+	return bytes.NewBufferString(parentStr)
+}
+
 // CombinedOutput runs cmd on the remote host and returns its combined stdout and stderr.
 func (c *Cmd) CombinedOutput() ([]byte, error) {
 	if err := c.init(); err != nil {
@@ -73,14 +79,22 @@ func (c *Cmd) Output() ([]byte, error) {
 }
 
 // Output runs cmd on the remote host and returns its stdout.
-func (c *Cmd) RawOutput() ([]byte, error) {
+func (c *Cmd) ScriptOutput() ([]byte, error) {
 	if err := c.init(); err != nil {
 		return nil, errors.Wrap(err, "cmd init")
 	}
-	var out bytes.Buffer
-	c.stdout = &out
+	var (
+		stdout bytes.Buffer
+		stderr bytes.Buffer
+	)
+	c.stdout = &stdout
+	c.stderr = &stderr
 	return c.runWithContext(func() ([]byte, error) {
-		return out.Bytes(), c.run()
+		err := c.run()
+		if err != nil {
+			return stderr.Bytes(), err
+		}
+		return stdout.Bytes(), err
 	})
 }
 
@@ -126,6 +140,8 @@ func (c *Cmd) runCmds() error {
 }
 
 func (c *Cmd) runScript() error {
+	envs := strings.Join(c.Env, "\n")
+	c.script = appendStringToBuffer(fmt.Sprintf("%v \n", envs), *c.script)
 	c.Session.Stdin = c.script
 	c.Session.Stdout = c.stdout
 	c.Session.Stderr = c.stderr
@@ -135,7 +151,6 @@ func (c *Cmd) runScript() error {
 	if err := c.Session.Wait(); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -168,6 +183,9 @@ func (c *Cmd) String() string {
 // Init inits and sets session env vars.
 func (c *Cmd) init() (err error) {
 
+	if c._type == rawScript {
+		return
+	}
 	// Set session env vars
 	var env []string
 	for _, value := range c.Env {

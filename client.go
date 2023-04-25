@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"time"
@@ -130,6 +131,14 @@ func (c Client) Script(script string) (*Cmd, error) {
 		script:  bytes.NewBufferString(script + "\n"),
 		_type:   rawScript,
 	}, nil
+}
+
+func (c Client) ScriptFile(filePath string) (*Cmd, error) {
+	file, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return c.Script(string(file))
 }
 
 // Run starts a new SSH session with context and runs the cmd. It returns CombinedOutput and err if any.
