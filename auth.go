@@ -6,7 +6,6 @@ package goph
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 
@@ -98,8 +97,6 @@ func GetSignerForRawKey(privateKey []byte, passphrase string) (ssh.Signer, error
 		err    error
 		signer ssh.Signer
 	)
-
-	log.Fatal(err)
 
 	if err != nil {
 
