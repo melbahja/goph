@@ -23,6 +23,23 @@ func Password(pass string) Auth {
 	}
 }
 
+// KeyboardInteractive returns password keyboard interactive auth method as fallback of password auth method.
+func KeyboardInteractive(pass string) Auth {
+	return Auth{
+		ssh.Password(pass),
+		ssh.KeyboardInteractive(func(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+			for _, q := range questions {
+				if strings.Contains(strings.ToLower(q), "password") {
+					answers = append(answers, pass)
+				} else {
+					answers = append(answers, "")
+				}
+			}
+			return answers, nil
+		}),
+	}
+}
+
 // Key returns auth method from private key with or without passphrase.
 func Key(prvFile string, passphrase string) (Auth, error) {
 
