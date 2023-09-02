@@ -4,6 +4,7 @@
 package goph
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
@@ -38,6 +39,22 @@ func (c *Cmd) CombinedOutput() ([]byte, error) {
 
 	return c.runWithContext(func() ([]byte, error) {
 		return c.Session.CombinedOutput(c.String())
+	})
+}
+
+// SeparatedOutput runs cmd on the remote host and returns its stdout and stderr.
+func (c *Cmd) SeparatedOutput() ([]byte, []byte, error) {
+	var stdout_buff, stderr_buff bytes.Buffer
+	c.Session.Stdout = &stdout_buff
+	c.Session.Stderr = &stderr_buff
+
+	if err := c.init(); err != nil {
+		return nil, nil, errors.Wrap(err, "cmd init")
+	}
+
+	return c.runWithContextAndErr(func() ([]byte, []byte, error) {
+		err := c.Session.Run(c.String())
+		return stdout_buff.Bytes(), stderr_buff.Bytes(), err
 	})
 }
 
@@ -94,6 +111,13 @@ func (c *Cmd) init() (err error) {
 }
 
 // Command with context output.
+type ctxCmdOutputAndErr struct {
+	stdout []byte
+	stderr []byte
+	err    error
+}
+
+// Command with context output.
 type ctxCmdOutput struct {
 	output []byte
 	err    error
@@ -117,5 +141,27 @@ func (c *Cmd) runWithContext(callback func() ([]byte, error)) ([]byte, error) {
 		return nil, c.Context.Err()
 	case result := <-outputChan:
 		return result.output, result.err
+	}
+}
+
+// Executes the given callback within session. Sends SIGINT when the context is canceled.
+func (c *Cmd) runWithContextAndErr(callback func() ([]byte, []byte, error)) ([]byte, []byte, error) {
+	outputChan := make(chan ctxCmdOutputAndErr)
+	go func() {
+		stdout, stderr, err := callback()
+		outputChan <- ctxCmdOutputAndErr{
+			stdout: stdout,
+			stderr: stderr,
+			err:    err,
+		}
+	}()
+
+	select {
+	case <-c.Context.Done():
+		_ = c.Session.Signal(ssh.SIGINT)
+
+		return nil, nil, c.Context.Err()
+	case result := <-outputChan:
+		return result.stdout, result.stderr, result.err
 	}
 }
