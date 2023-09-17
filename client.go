@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"time"
@@ -36,11 +35,19 @@ type Config struct {
 // DefaultTimeout is the timeout of ssh client connection.
 var DefaultTimeout = 20 * time.Second
 
+func GetAuth(host string) (Auth, error) {
+	auth, err := Key(ssh_config.Get(host, "IdentityFile"), "")
+	if err != nil {
+		return nil, fmt.Errorf("get key: %w", err)
+	}
+	return auth, nil
+}
+
 // NewWithConfigFile starts a new ssh connection with given config file, the host public key must be in known hosts.
 func NewWithConfigFile(name string) (*Client, error) {
-	auth, err := Key(ssh_config.Get(name, "IdentityFile"), "")
+	auth, err := GetAuth(name)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	return New(
 		ssh_config.Get(name, "User"),
@@ -84,9 +91,9 @@ func NewUnknown(user string, addr string, auth Auth) (*Client, error) {
 }
 
 func NewWithConfigFileUnknown(name string) (*Client, error) {
-	auth, err := Key(ssh_config.Get(name, "IdentityFile"), "")
+	auth, err := GetAuth(name)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	return NewUnknown(
 		ssh_config.Get(name, "User"),
