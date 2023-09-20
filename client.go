@@ -24,12 +24,13 @@ type Client struct {
 
 // Config for Client.
 type Config struct {
-	Auth     Auth
-	User     string
-	Addr     string
-	Port     uint
-	Timeout  time.Duration
-	Callback ssh.HostKeyCallback
+	Auth           Auth
+	User           string
+	Addr           string
+	Port           uint
+	Timeout        time.Duration
+	Callback       ssh.HostKeyCallback
+	BannerCallback ssh.BannerCallback
 }
 
 // DefaultTimeout is the timeout of ssh client connection.
@@ -120,6 +121,7 @@ func Dial(proto string, c *Config) (*ssh.Client, error) {
 		Auth:            c.Auth,
 		Timeout:         c.Timeout,
 		HostKeyCallback: c.Callback,
+		BannerCallback:  c.BannerCallback,
 	})
 }
 
