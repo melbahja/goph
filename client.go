@@ -39,7 +39,7 @@ type Config struct {
 var DefaultTimeout = 20 * time.Second
 
 func GetAuth(host string) (Auth, error) {
-	auth, err := Key(ssh_config.Get(host, "IdentityFile"), "")
+	auth, err := Key(getSshConfig(host, "IdentityFile"), "")
 	if err != nil {
 		return nil, fmt.Errorf("get key: %w", err)
 	}
