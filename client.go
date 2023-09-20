@@ -6,6 +6,8 @@ package goph
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"io"
 	"net"
 	"os"
@@ -44,17 +46,39 @@ func GetAuth(host string) (Auth, error) {
 	return auth, nil
 }
 
-// NewWithConfigFile starts a new ssh connection with given config file, the host public key must be in known hosts.
-func NewWithConfigFile(name string) (*Client, error) {
+func getSshConfig(alias string, key string) string {
+	// to fix https://github.com/kevinburke/ssh_config/issues/61 issue
+	return strings.Trim(ssh_config.Get(alias, key), "\"")
+}
+
+func NewWithConfigFileHostKeyCallback(name string, callback ssh.HostKeyCallback) (*Client, error){
 	auth, err := GetAuth(name)
 	if err != nil {
 		return nil, err
 	}
-	return New(
-		ssh_config.Get(name, "User"),
-		ssh_config.Get(name, "HostName"),
-		auth,
-	)
+	port, err := strconv.Atoi(getSshConfig(name, "Port"))
+	if err != nil {
+		return nil, err
+	}
+
+	return NewConn(&Config{
+			User:     getSshConfig(name, "User"),
+			Addr:     getSshConfig(name, "HostName"),
+			Port:     uint(port),
+			Auth:     auth,
+			Timeout:  DefaultTimeout,
+			Callback: callback,
+	})
+
+}
+
+// NewWithConfigFile starts a new ssh connection with given config file, the host public key must be in known hosts.
+func NewWithConfigFile(name string) (*Client, error) {
+	callback, err := DefaultKnownHosts()
+	if err != nil {
+		return nil, err
+	}
+	return NewWithConfigFileHostKeyCallback(name, callback)
 }
 
 // New starts a new ssh connection, the host public key must be in known hosts.
@@ -92,15 +116,7 @@ func NewUnknown(user string, addr string, auth Auth) (*Client, error) {
 }
 
 func NewWithConfigFileUnknown(name string) (*Client, error) {
-	auth, err := GetAuth(name)
-	if err != nil {
-		return nil, err
-	}
-	return NewUnknown(
-		ssh_config.Get(name, "User"),
-		ssh_config.Get(name, "HostName"),
-		auth,
-	)
+	return NewWithConfigFileHostKeyCallback(name, ssh.InsecureIgnoreHostKey())
 }
 
 // NewConn returns new client and error if any.
