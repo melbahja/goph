@@ -90,7 +90,7 @@ func GetSigner(prvFile string, passphrase string) (ssh.Signer, error) {
 	return signer, err
 }
 
-// GetSigner returns ssh signer from private key file.
+// GetSignerForRawKey returns ssh signer from private key file.
 func GetSignerForRawKey(privateKey []byte, passphrase string) (ssh.Signer, error) {
 
 	var (
@@ -98,11 +98,7 @@ func GetSignerForRawKey(privateKey []byte, passphrase string) (ssh.Signer, error
 		signer ssh.Signer
 	)
 
-	if err != nil {
-
-		return nil, err
-
-	} else if passphrase != "" {
+	if passphrase != "" {
 
 		signer, err = ssh.ParsePrivateKeyWithPassphrase(privateKey, []byte(passphrase))
 
