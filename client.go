@@ -6,11 +6,14 @@ package goph
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"io"
 	"net"
 	"os"
 	"time"
 
+	"github.com/kevinburke/ssh_config"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -35,9 +38,51 @@ type Config struct {
 // DefaultTimeout is the timeout of ssh client connection.
 var DefaultTimeout = 20 * time.Second
 
+func GetAuth(host string) (Auth, error) {
+	auth, err := Key(getSshConfig(host, "IdentityFile"), "")
+	if err != nil {
+		return nil, fmt.Errorf("get key: %w", err)
+	}
+	return auth, nil
+}
+
+func getSshConfig(alias string, key string) string {
+	// to fix https://github.com/kevinburke/ssh_config/issues/61 issue
+	return strings.Trim(ssh_config.Get(alias, key), "\"")
+}
+
+func NewWithConfigFileHostKeyCallback(name string, callback ssh.HostKeyCallback) (*Client, error){
+	auth, err := GetAuth(name)
+	if err != nil {
+		return nil, err
+	}
+	port, err := strconv.Atoi(getSshConfig(name, "Port"))
+	if err != nil {
+		return nil, err
+	}
+
+	return NewConn(&Config{
+			User:     getSshConfig(name, "User"),
+			Addr:     getSshConfig(name, "HostName"),
+			Port:     uint(port),
+			Auth:     auth,
+			Timeout:  DefaultTimeout,
+			Callback: callback,
+	})
+
+}
+
+// NewWithConfigFile starts a new ssh connection with given config file, the host public key must be in known hosts.
+func NewWithConfigFile(name string) (*Client, error) {
+	callback, err := DefaultKnownHosts()
+	if err != nil {
+		return nil, err
+	}
+	return NewWithConfigFileHostKeyCallback(name, callback)
+}
+
 // New starts a new ssh connection, the host public key must be in known hosts.
 func New(user string, addr string, auth Auth) (c *Client, err error) {
-
 	callback, err := DefaultKnownHosts()
 
 	if err != nil {
@@ -68,6 +113,10 @@ func NewUnknown(user string, addr string, auth Auth) (*Client, error) {
 		Timeout:  DefaultTimeout,
 		Callback: ssh.InsecureIgnoreHostKey(),
 	})
+}
+
+func NewWithConfigFileUnknown(name string) (*Client, error) {
+	return NewWithConfigFileHostKeyCallback(name, ssh.InsecureIgnoreHostKey())
 }
 
 // NewConn returns new client and error if any.
