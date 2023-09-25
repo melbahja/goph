@@ -6,9 +6,10 @@ import (
 	"net"
 	"testing"
 
-	"github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
+
+	"github.com/tareksalem/goph"
 )
 
 var privateBytes = []byte(`
@@ -183,7 +184,7 @@ func newServer(port string) {
 				}
 			}(requests)
 
-			term := terminal.NewTerminal(channel, "> ")
+			term := term.NewTerminal(channel, "> ")
 
 			go func() {
 				defer channel.Close()

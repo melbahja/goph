@@ -4,9 +4,11 @@
 package goph
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"time"
@@ -109,6 +111,36 @@ func (c Client) Run(cmd string) ([]byte, error) {
 	return sess.CombinedOutput(cmd)
 }
 
+// Run starts a new SSH session and runs the cmd, it returns CombinedOutput and err if any.
+func (c Client) Script(script string) (*Cmd, error) {
+
+	var (
+		err  error
+		sess *ssh.Session
+	)
+
+	if sess, err = c.NewSession(); err != nil {
+		return nil, err
+	}
+
+	return &Cmd{
+		Path:    "",
+		Args:    []string{},
+		Session: sess,
+		Context: context.Background(),
+		script:  bytes.NewBufferString(script + "\n"),
+		_type:   rawScript,
+	}, nil
+}
+
+func (c Client) ScriptFile(filePath string) (*Cmd, error) {
+	file, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	return c.Script(string(file))
+}
+
 // Run starts a new SSH session with context and runs the cmd. It returns CombinedOutput and err if any.
 func (c Client) RunContext(ctx context.Context, name string) ([]byte, error) {
 	cmd, err := c.CommandContext(ctx, name)
@@ -136,6 +168,8 @@ func (c Client) Command(name string, args ...string) (*Cmd, error) {
 		Args:    args,
 		Session: sess,
 		Context: context.Background(),
+		_type:   cmdLine,
+		script:  bytes.NewBufferString(name + "\n"),
 	}, nil
 }
 
