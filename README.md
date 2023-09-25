@@ -60,6 +60,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Make a ssh connection to 22 port by default.
 	client, err := goph.New("root", "192.1.1.3", auth)
 	if err != nil {
 		log.Fatal(err)
@@ -79,6 +80,12 @@ func main() {
 	fmt.Println(string(out))
 }
 ```
+
+#### Start Connection With Custom Port:
+```go
+client, err := goph.New("root", "192.1.1.3:8998", auth)
+```
+
 
 #### 🔐 Start Connection With Protected Private Key:
 ```go

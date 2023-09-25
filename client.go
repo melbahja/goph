@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -44,10 +45,23 @@ func New(user string, addr string, auth Auth) (c *Client, err error) {
 		return
 	}
 
+	host, port_str, err := net.SplitHostPort(addr)
+	if err != nil {
+		return
+	}
+	if len(port_str) == 0 {
+		port_str = "22"
+	}
+	port_int, err := strconv.Atoi(port_str)
+	if err != nil {
+		return
+	}
+	port := uint(port_int)
+
 	c, err = NewConn(&Config{
 		User:     user,
-		Addr:     addr,
-		Port:     22,
+		Addr:     host,
+		Port:     port,
 		Auth:     auth,
 		Timeout:  DefaultTimeout,
 		Callback: callback,
