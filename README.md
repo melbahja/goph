@@ -35,6 +35,8 @@ You can find the docs at [go docs](https://pkg.go.dev/github.com/melbahja/goph).
 - Supports connections with **protected private keys** with passphrase.
 - Supports **upload** files from local to remote.
 - Supports **download** files from remote to local.
+- Supports **writing** from `io.Reader` to remote file.
+- Supports **reading** from remote file to `io.Writer`.
 - Supports connections with **ssh agent** (Unix systems only).
 - Supports adding new hosts to **known_hosts file**.
 - Supports **file system operations** like: `Open, Create, Chmod...`

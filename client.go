@@ -170,20 +170,7 @@ func (c Client) Upload(localPath string, remotePath string) (err error) {
 	}
 	defer local.Close()
 
-	ftp, err := c.NewSftp()
-	if err != nil {
-		return
-	}
-	defer ftp.Close()
-
-	remote, err := ftp.Create(remotePath)
-	if err != nil {
-		return
-	}
-	defer remote.Close()
-
-	_, err = io.Copy(remote, local)
-	return
+	return c.WriteFile(remotePath, local)
 }
 
 // Download file from remote server!
@@ -195,21 +182,49 @@ func (c Client) Download(remotePath string, localPath string) (err error) {
 	}
 	defer local.Close()
 
+	err = c.ReadFile(remotePath, local)
+	if err != nil {
+		return err
+	}
+
+	return local.Sync()
+}
+
+// WriteFile writes to a remote file
+func (c Client) WriteFile(path string, data io.Reader) (err error) {
 	ftp, err := c.NewSftp()
 	if err != nil {
 		return
 	}
 	defer ftp.Close()
 
-	remote, err := ftp.Open(remotePath)
+	remote, err := ftp.Create(path)
 	if err != nil {
 		return
 	}
 	defer remote.Close()
 
-	if _, err = io.Copy(local, remote); err != nil {
+	_, err = io.Copy(remote, data)
+	return
+}
+
+// ReadFile reads from a remote file
+func (c Client) ReadFile(path string, target io.Writer) (err error) {
+	ftp, err := c.NewSftp()
+	if err != nil {
+		return
+	}
+	defer ftp.Close()
+
+	remote, err := ftp.Open(path)
+	if err != nil {
+		return
+	}
+	defer remote.Close()
+
+	if _, err = io.Copy(target, remote); err != nil {
 		return
 	}
 
-	return local.Sync()
+	return nil
 }
