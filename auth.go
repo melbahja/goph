@@ -5,6 +5,7 @@ package goph
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -12,6 +13,9 @@ import (
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
+	"gopkg.in/jcmturner/gokrb5.v7/client"
+	"gopkg.in/jcmturner/gokrb5.v7/config"
+	"gopkg.in/jcmturner/gokrb5.v7/keytab"
 )
 
 // Auth represents ssh auth methods.
@@ -63,6 +67,44 @@ func RawKey(privateKey string, passphrase string) (Auth, error) {
 
 	return Auth{
 		ssh.PublicKeys(signer),
+	}, nil
+}
+
+// KerberosWithPassword returns a kerberos auth with password.
+func KerberosWithPassword(username, password, realm, target string, krb5cfg io.Reader) (Auth, error) {
+	cfg, err := config.NewConfigFromReader(krb5cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	cl := client.NewClientWithPassword(username, realm, password, cfg, client.DisablePAFXFAST(true))
+	c, err := newKrb5Client(cl)
+	if err != nil {
+		return nil, err
+	}
+	return Auth{
+		ssh.GSSAPIWithMICAuthMethod(c, target),
+	}, nil
+}
+
+// KerberosWithKeytab returns a kerberos auth with keytab.
+func KerberosWithKeytab(username, keytabFile, realm, target string, krb5cfg io.Reader) (Auth, error) {
+	kt, err := keytab.Load(keytabFile)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := config.NewConfigFromReader(krb5cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	cl := client.NewClientWithKeytab(username, realm, kt, cfg, client.DisablePAFXFAST(true))
+	c, err := newKrb5Client(cl)
+	if err != nil {
+		return nil, err
+	}
+	return Auth{
+		ssh.GSSAPIWithMICAuthMethod(c, target),
 	}, nil
 }
 
