@@ -57,7 +57,7 @@ func New(user string, addr string, auth Auth) (c *Client, err error) {
 
 // NewUnknown starts a ssh connection get client without cheking knownhosts.
 // PLEASE AVOID USING THIS, UNLESS YOU KNOW WHAT ARE YOU DOING!
-// if there a "man in the middle proxy", this can harm you!
+// if there a is a "man in the middle proxy", this can harm you!
 // You can add the key to know hosts and use New() func instead!
 func NewUnknown(user string, addr string, auth Auth) (*Client, error) {
 	return NewConn(&Config{
