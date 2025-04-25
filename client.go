@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -35,6 +36,27 @@ type Config struct {
 // DefaultTimeout is the timeout of ssh client connection.
 var DefaultTimeout = 20 * time.Second
 
+// parseAddress 解析地址字符串，返回主机和端口
+func parseAddress(addr string) (host string, port int, err error) {
+	// 分割地址和端口
+	if strings.Contains(addr, ":") {
+		host, portStr, splitErr := net.SplitHostPort(addr)
+		if splitErr != nil {
+			return "", 0, fmt.Errorf("invalid address format: %v", splitErr)
+		}
+
+		// 尝试将端口转换为整数
+		port, convErr := net.LookupPort("tcp", portStr)
+		if convErr != nil {
+			return "", 0, fmt.Errorf("invalid port format: %v", convErr)
+		}
+		return host, port, nil
+	}
+
+	// 如果没有端口，返回主机名/IP 和默认端口 0
+	return addr, 0, nil
+}
+
 // New starts a new ssh connection, the host public key must be in known hosts.
 func New(user string, addr string, auth Auth) (c *Client, err error) {
 
@@ -44,10 +66,21 @@ func New(user string, addr string, auth Auth) (c *Client, err error) {
 		return
 	}
 
+	// Parse addr to extract IP and port
+	host, port, err := parseAddress("127.0.0.1")
+	if err != nil {
+		fmt.Println("Failed to parse address:", err)
+		return
+	}
+	// If no port is specified, default to 22
+	if port == 0 {
+		port = 22
+	}
+
 	c, err = NewConn(&Config{
 		User:     user,
-		Addr:     addr,
-		Port:     22,
+		Addr:     host,
+		Port:     uint(port),
 		Auth:     auth,
 		Timeout:  DefaultTimeout,
 		Callback: callback,
@@ -60,10 +93,20 @@ func New(user string, addr string, auth Auth) (c *Client, err error) {
 // if there a "man in the middle proxy", this can harm you!
 // You can add the key to know hosts and use New() func instead!
 func NewUnknown(user string, addr string, auth Auth) (*Client, error) {
+	// Parse addr to extract IP and port
+	host, port, err := parseAddress("127.0.0.1")
+	if err != nil {
+		return nil, err
+	}
+	// If no port is specified, default to 22
+	if port == 0 {
+		port = 22
+	}
+
 	return NewConn(&Config{
 		User:     user,
-		Addr:     addr,
-		Port:     22,
+		Addr:     host,
+		Port:     uint(port),
 		Auth:     auth,
 		Timeout:  DefaultTimeout,
 		Callback: ssh.InsecureIgnoreHostKey(),
