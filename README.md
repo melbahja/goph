@@ -39,6 +39,7 @@ You can find the docs at [go docs](https://pkg.go.dev/github.com/melbahja/goph).
 - Supports adding new hosts to **known_hosts file**.
 - Supports **file system operations** like: `Open, Create, Chmod...`
 - Supports **context.Context** for command cancellation.
+- Supports **TCP proxy** connections (SOCKS5 and HTTP CONNECT).
 
 ## 📄&nbsp; Usage
 
@@ -103,6 +104,47 @@ if err != nil {
 }
 
 client, err := goph.New("root", "192.1.1.3", auth)
+```
+
+#### 🥪 Using TCP Proxies:
+
+**SOCKS5 Proxy:**
+```go
+// Connect via SOCKS5 proxy
+client, err := goph.NewSOCKS5ProxyConn("root", "192.1.1.3", goph.Password("password"), "proxy.example.com", 1080, "", "")
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+**HTTP CONNECT Proxy:**
+```go
+// Connect via HTTP CONNECT proxy
+client, err := goph.NewHTTPProxyConn("root", "192.1.1.3", goph.Password("password"), "proxy.example.com", 8080, "proxyuser", "proxypass")
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+**Manual Proxy Configuration:**
+```go
+config := &goph.Config{
+	User:     "root",
+	Addr:     "192.1.1.3",
+	Port:     22,
+	Auth:     goph.Password("password"),
+	Timeout:  30 * time.Second,
+	Callback: ssh.InsecureIgnoreHostKey(), // or use goph.DefaultKnownHosts()
+	Proxy: &goph.ProxyConfig{
+		Type:     goph.ProxyTypeSOCKS5,
+		Addr:     "proxy.example.com",
+		Port:     1080,
+		User:     "proxyuser",     // optional
+		Password: "proxypass",     // optional
+	},
+}
+
+client, err := goph.NewConn(config)
 ```
 
 #### ⤴️ Upload Local File to Remote:

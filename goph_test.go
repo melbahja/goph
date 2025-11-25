@@ -57,6 +57,7 @@ func TestGoph(t *testing.T) {
 	t.Run("gophRunTest", gophRunTest)
 	t.Run("gophAuthTest", gophAuthTest)
 	t.Run("gophWrongPassTest", gophWrongPassTest)
+	t.Run("gophProxyConfigTest", gophProxyConfigTest)
 }
 
 func gophAuthTest(t *testing.T) {
@@ -197,4 +198,66 @@ func newServer(port string) {
 			}()
 		}
 	}()
+}
+
+func gophProxyConfigTest(t *testing.T) {
+	// Test proxy config creation
+	proxyConfig := &goph.ProxyConfig{
+		Type:     goph.ProxyTypeSOCKS5,
+		Addr:     "127.0.0.1",
+		Port:     1080,
+		User:     "proxyuser",
+		Password: "proxypass",
+	}
+
+	config := &goph.Config{
+		User:     "testuser",
+		Addr:     "127.0.0.1",
+		Port:     22,
+		Auth:     goph.Password("testpass"),
+		Timeout:  goph.DefaultTimeout,
+		Callback: ssh.InsecureIgnoreHostKey(),
+		Proxy:    proxyConfig,
+	}
+
+	if config.Proxy.Type != goph.ProxyTypeSOCKS5 {
+		t.Errorf("expected proxy type SOCKS5, got %v", config.Proxy.Type)
+	}
+
+	if config.Proxy.Addr != "127.0.0.1" {
+		t.Errorf("expected proxy addr 127.0.0.1, got %s", config.Proxy.Addr)
+	}
+
+	if config.Proxy.Port != 1080 {
+		t.Errorf("expected proxy port 1080, got %d", config.Proxy.Port)
+	}
+
+	if config.Proxy.User != "proxyuser" {
+		t.Errorf("expected proxy user proxyuser, got %s", config.Proxy.User)
+	}
+
+	if config.Proxy.Password != "proxypass" {
+		t.Errorf("expected proxy password proxypass, got %s", config.Proxy.Password)
+	}
+}
+
+func TestProxyTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		ptype goph.ProxyType
+		expected string
+	}{
+		{"None", goph.ProxyTypeNone, "none"},
+		{"SOCKS5", goph.ProxyTypeSOCKS5, "socks5"},
+		{"HTTP", goph.ProxyTypeHTTP, "http"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test that proxy types are defined correctly
+			if tt.ptype < goph.ProxyTypeNone || tt.ptype > goph.ProxyTypeHTTP {
+				t.Errorf("proxy type %v out of range", tt.ptype)
+			}
+		})
+	}
 }

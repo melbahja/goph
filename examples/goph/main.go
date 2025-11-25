@@ -35,6 +35,12 @@ import (
 // Run a command and interrupt it after 1 second:
 // > go run main.go --ip 192.168.122.102 --cmd "sleep 10" --timeout=1s
 //
+// Run command via SOCKS5 proxy:
+// > go run main.go --ip 192.168.122.102 --pass --proxy-type socks5 --proxy-addr proxy.example.com --proxy-port 1080 --cmd ls
+//
+// Run command via HTTP CONNECT proxy with authentication:
+// > go run main.go --ip 192.168.122.102 --pass --proxy-type http --proxy-addr proxy.example.com --proxy-port 8080 --proxy-user proxyuser --proxy-pass proxypass --cmd ls
+//
 // You can test with the interactive mode without passing --cmd flag.
 //
 
@@ -52,6 +58,11 @@ var (
 	timeout    time.Duration
 	agent      bool
 	sftpc      *sftp.Client
+	proxyType  string
+	proxyAddr  string
+	proxyPort  uint
+	proxyUser  string
+	proxyPass  string
 )
 
 func init() {
@@ -70,6 +81,11 @@ func init() {
 	flag.BoolVar(&agent, "agent", false, "use ssh agent for authentication (unix systems only).")
 	flag.BoolVar(&passphrase, "passphrase", false, "ask for private key passphrase.")
 	flag.DurationVar(&timeout, "timeout", 0, "interrupt a command with SIGINT after a given timeout (0 means no timeout)")
+	flag.StringVar(&proxyType, "proxy-type", "", "proxy type: socks5 or http")
+	flag.StringVar(&proxyAddr, "proxy-addr", "", "proxy server address")
+	flag.UintVar(&proxyPort, "proxy-port", 1080, "proxy server port")
+	flag.StringVar(&proxyUser, "proxy-user", "", "proxy authentication username")
+	flag.StringVar(&proxyPass, "proxy-pass", "", "proxy authentication password")
 }
 
 func VerifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
@@ -131,13 +147,37 @@ func main() {
 		panic(err)
 	}
 
-	client, err = goph.NewConn(&goph.Config{
+	// Create client config
+	config := &goph.Config{
 		User:     user,
 		Addr:     addr,
 		Port:     port,
 		Auth:     auth,
 		Callback: VerifyHost,
-	})
+	}
+
+	// Add proxy configuration if specified
+	if proxyType != "" {
+		var pType goph.ProxyType
+		switch strings.ToLower(proxyType) {
+		case "socks5":
+			pType = goph.ProxyTypeSOCKS5
+		case "http":
+			pType = goph.ProxyTypeHTTP
+		default:
+			log.Fatalf("unsupported proxy type: %s. Use 'socks5' or 'http'", proxyType)
+		}
+
+		config.Proxy = &goph.ProxyConfig{
+			Type:     pType,
+			Addr:     proxyAddr,
+			Port:     proxyPort,
+			User:     proxyUser,
+			Password: proxyPass,
+		}
+	}
+
+	client, err = goph.NewConn(config)
 
 	if err != nil {
 		panic(err)
