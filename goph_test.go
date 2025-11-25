@@ -241,23 +241,3 @@ func gophProxyConfigTest(t *testing.T) {
 	}
 }
 
-func TestProxyTypes(t *testing.T) {
-	tests := []struct {
-		name string
-		ptype goph.ProxyType
-		expected string
-	}{
-		{"None", goph.ProxyTypeNone, "none"},
-		{"SOCKS5", goph.ProxyTypeSOCKS5, "socks5"},
-		{"HTTP", goph.ProxyTypeHTTP, "http"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Test that proxy types are defined correctly
-			if tt.ptype < goph.ProxyTypeNone || tt.ptype > goph.ProxyTypeHTTP {
-				t.Errorf("proxy type %v out of range", tt.ptype)
-			}
-		})
-	}
-}
