@@ -90,6 +90,20 @@ if err != nil {
 client, err := goph.New("root", "192.1.1.3", auth)
 ```
 
+#### 🔐 Start Connection With In-Memory Private Key Content:
+```go
+privateKey := `-----BEGIN RSA PRIVATE KEY-----
+...key content...
+-----END RSA PRIVATE KEY-----`
+
+auth, err := goph.Key(privateKey, "")
+if err != nil {
+	// handle error
+}
+
+client, err := goph.New("root", "192.1.1.3", auth)
+```
+
 #### 🔑 Start Connection With Password:
 ```go
 client, err := goph.New("root", "192.1.1.3", goph.Password("you_password_here"))

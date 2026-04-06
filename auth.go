@@ -55,8 +55,10 @@ func Key(prvFile string, passphrase string) (Auth, error) {
 	}, nil
 }
 
-func RawKey(privateKey string, passphrase string) (Auth, error) {
-	signer, err := GetSignerForRawKey([]byte(privateKey), passphrase)
+// KeyContent returns auth method from private key content (byte slice) with optional passphrase.
+// This is useful when the private key is stored in memory rather than a file.
+func KeyContent(privateKey []byte, passphrase string) (Auth, error) {
+	signer, err := GetSignerForRawKey(privateKey, passphrase)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +66,12 @@ func RawKey(privateKey string, passphrase string) (Auth, error) {
 	return Auth{
 		ssh.PublicKeys(signer),
 	}, nil
+}
+
+// RawKey returns auth method from private key string content with optional passphrase.
+// Deprecated: Use KeyContent instead which accepts []byte directly.
+func RawKey(privateKey string, passphrase string) (Auth, error) {
+	return KeyContent([]byte(privateKey), passphrase)
 }
 
 // HasAgent checks if ssh agent exists.
@@ -84,6 +92,9 @@ func UseAgent() (Auth, error) {
 
 // GetSigner returns ssh signer from private key file.
 func GetSigner(prvFile string, passphrase string) (ssh.Signer, error) {
+	if isRawPrivateKey(prvFile) {
+		return GetSignerForRawKey([]byte(prvFile), passphrase)
+	}
 
 	var (
 		err    error
@@ -106,6 +117,11 @@ func GetSigner(prvFile string, passphrase string) (ssh.Signer, error) {
 	}
 
 	return signer, err
+}
+
+func isRawPrivateKey(input string) bool {
+	trimmed := strings.TrimSpace(input)
+	return strings.HasPrefix(trimmed, "-----BEGIN") && strings.Contains(trimmed, "PRIVATE KEY-----")
 }
 
 // GetSignerForRawKey returns ssh signer from private key file.
