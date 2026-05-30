@@ -140,7 +140,7 @@ func newServer(port string) (func(), error) {
 
 	private, err := ssh.ParsePrivateKey(privateBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key", err)
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
 	}
 
 	config.AddHostKey(private)
