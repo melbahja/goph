@@ -61,9 +61,13 @@ func TestGoph(t *testing.T) {
 
 func gophAuthTest(t *testing.T) {
 
-	newServer("2020")
+	cleanup, err := newServer("2020")
+	if err != nil {
+		t.Fatalf("failed to start server: %s", err)
+	}
+	defer cleanup()
 
-	_, err := goph.NewConn(&goph.Config{
+	_, err = goph.NewConn(&goph.Config{
 		Addr:     "127.0.10.10",
 		Port:     2020,
 		User:     "melbahja",
@@ -77,8 +81,11 @@ func gophAuthTest(t *testing.T) {
 }
 
 func gophRunTest(t *testing.T) {
-
-	newServer("2021")
+	cleanup, err := newServer("2021")
+	if err != nil {
+		t.Fatalf("failed to start server: %s", err)
+	}
+	defer cleanup()
 
 	client, err := goph.NewConn(&goph.Config{
 		Addr:     "127.0.10.10",
@@ -100,10 +107,13 @@ func gophRunTest(t *testing.T) {
 }
 
 func gophWrongPassTest(t *testing.T) {
+	cleanup, err := newServer("2022")
+	if err != nil {
+		t.Fatalf("failed to start server: %s", err)
+	}
+	defer cleanup()
 
-	newServer("2022")
-
-	_, err := goph.NewConn(&goph.Config{
+	_, err = goph.NewConn(&goph.Config{
 		Addr:     "127.0.10.10",
 		Port:     2022,
 		User:     "melbahja",
@@ -116,8 +126,7 @@ func gophWrongPassTest(t *testing.T) {
 	}
 }
 
-func newServer(port string) {
-
+func newServer(port string) (func(), error) {
 	config := &ssh.ServerConfig{
 		// Remove to disable password auth.
 		PasswordCallback: func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
@@ -131,7 +140,7 @@ func newServer(port string) {
 
 	private, err := ssh.ParsePrivateKey(privateBytes)
 	if err != nil {
-		log.Fatal("Failed to parse private key: ", err)
+		return nil, fmt.Errorf("failed to parse private key", err)
 	}
 
 	config.AddHostKey(private)
@@ -140,21 +149,27 @@ func newServer(port string) {
 	// accepted.
 	listener, err := net.Listen("tcp", "127.0.10.10:"+port)
 	if err != nil {
-		log.Fatal("failed to listen for connection: ", err)
+		return nil, fmt.Errorf("failed to listen for connection: %w", err)
+	}
+
+	cleanup := func() {
+		listener.Close()
 	}
 
 	go func() {
 
 		nConn, err := listener.Accept()
 		if err != nil {
-			log.Fatal("failed to accept incoming connection: ", err)
+			log.Printf("failed to accept incoming connection: %s", err)
+			return
 		}
 
 		// Before use, a handshake must be performed on the incoming
 		// net.Conn.
 		_, chans, reqs, err := ssh.NewServerConn(nConn, config)
 		if err != nil {
-			log.Fatal("failed to handshake: ", err)
+			log.Printf("failed to handshake: %s", err)
+			return
 		}
 
 		// The incoming Request channel must be serviced.
@@ -169,7 +184,8 @@ func newServer(port string) {
 
 			channel, requests, err := newChannel.Accept()
 			if err != nil {
-				log.Fatalf("Could not accept channel: %v", err)
+				log.Printf("Could not accept channel: %s", err)
+				continue
 			}
 
 			go func(in <-chan *ssh.Request) {
@@ -197,4 +213,6 @@ func newServer(port string) {
 			}()
 		}
 	}()
+
+	return cleanup, nil
 }
