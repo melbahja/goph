@@ -6,13 +6,16 @@ package goph
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 	"strings"
+	"sync/atomic"
 )
 
 // Cmd it's like os/exec.Cmd but for ssh session.
 type Cmd struct {
+
+	// SSH session.
+	*ssh.Session
 
 	// Path to command executable filename
 	Path string
@@ -23,63 +26,67 @@ type Cmd struct {
 	// Session env vars.
 	Env []string
 
-	// SSH session.
-	*ssh.Session
+	// Cancel is called when Context is done.
+	// If non-nil, it replaces the default ssh.SIGINT signal.
+	// If nil, ssh.SIGINT is sent on cancellation.
+	Cancel func() error
 
-	// Context for cancellation
-	Context context.Context
+	initialized atomic.Bool
+
+	// ctx for cancellation
+	ctx context.Context
 }
 
 // CombinedOutput runs cmd on the remote host and returns its combined stdout and stderr.
 func (c *Cmd) CombinedOutput() ([]byte, error) {
-	if err := c.init(); err != nil {
-		return nil, errors.Wrap(err, "cmd init")
-	}
 
-	return c.runWithContext(func() ([]byte, error) {
+	return c.runInContext(func() ([]byte, error) {
 		return c.Session.CombinedOutput(c.String())
 	})
 }
 
 // Output runs cmd on the remote host and returns its stdout.
 func (c *Cmd) Output() ([]byte, error) {
-	if err := c.init(); err != nil {
-		return nil, errors.Wrap(err, "cmd init")
-	}
 
-	return c.runWithContext(func() ([]byte, error) {
+	return c.runInContext(func() ([]byte, error) {
 		return c.Session.Output(c.String())
 	})
 }
 
 // Run runs cmd on the remote host.
-func (c *Cmd) Run() error {
-	if err := c.init(); err != nil {
-		return errors.Wrap(err, "cmd init")
-	}
+func (c *Cmd) Run() (err error) {
 
-	_, err := c.runWithContext(func() ([]byte, error) {
+	_, err = c.runInContext(func() ([]byte, error) {
 		return nil, c.Session.Run(c.String())
 	})
-
-	return err
+	return
 }
 
 // Start runs the command on the remote host.
-func (c *Cmd) Start() error {
-	if err := c.init(); err != nil {
-		return errors.Wrap(err, "cmd init")
-	}
-	return c.Session.Start(c.String())
+func (c *Cmd) Start() (err error) {
+
+	_, err = c.runInContext(func() ([]byte, error) {
+		return nil, c.Session.Start(c.String())
+	})
+	return
 }
 
-// String return the command line string.
+// String returns the command line string.
+//
+// WARNING: Path and Args are joined as is without any shell escaping.
+// If Path or Args contain untrusted input, remote command injection is possible.
+// Sanitize or shell quote untrusted values yourself before building the Cmd,
+// or use a shell quoting helper from your application.
 func (c *Cmd) String() string {
 	return fmt.Sprintf("%s %s", c.Path, strings.Join(c.Args, " "))
 }
 
 // Init inits and sets session env vars.
 func (c *Cmd) init() (err error) {
+
+	if c.initialized.Load() {
+		return nil
+	}
 
 	// Set session env vars
 	var env []string
@@ -90,32 +97,36 @@ func (c *Cmd) init() (err error) {
 		}
 	}
 
+	c.initialized.Store(true)
 	return nil
 }
 
-// Command with context output.
-type ctxCmdOutput struct {
-	output []byte
-	err    error
-}
-
 // Executes the given callback within session. Sends SIGINT when the context is canceled.
-func (c *Cmd) runWithContext(callback func() ([]byte, error)) ([]byte, error) {
-	outputChan := make(chan ctxCmdOutput)
+func (c *Cmd) runInContext(callback func() ([]byte, error)) (out []byte, err error) {
+
+	if err = c.init(); err != nil {
+		return nil, fmt.Errorf("cmd init: %w", err)
+	}
+
+	done := make(chan struct{}, 1)
 	go func() {
-		output, err := callback()
-		outputChan <- ctxCmdOutput{
-			output: output,
-			err:    err,
-		}
+		out, err = callback()
+		done <- struct{}{}
 	}()
 
 	select {
-	case <-c.Context.Done():
-		_ = c.Session.Signal(ssh.SIGINT)
 
-		return nil, c.Context.Err()
-	case result := <-outputChan:
-		return result.output, result.err
+	case <-c.ctx.Done():
+
+		if c.Cancel != nil {
+			c.Cancel()
+		} else {
+			c.Signal(ssh.SIGINT)
+		}
+
+		return nil, c.ctx.Err()
+
+	case <-done:
+		return out, err
 	}
 }

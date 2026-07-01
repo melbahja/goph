@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/melbahja/goph"
 	"golang.org/x/crypto/ssh"
@@ -63,13 +64,11 @@ func gophAuthTest(t *testing.T) {
 
 	newServer("2020")
 
-	_, err := goph.NewConn(&goph.Config{
-		Addr:     "127.0.10.10",
-		Port:     2020,
-		User:     "melbahja",
-		Auth:     goph.Password("123456"),
-		Callback: ssh.InsecureIgnoreHostKey(),
-	})
+	_, err := goph.New("melbahja", "127.0.10.10",
+		goph.WithPassword("123456"),
+		goph.WithPort(2020),
+		goph.WithInsecureIgnoreHostKey(),
+	)
 
 	if err != nil {
 		t.Error(err)
@@ -80,13 +79,11 @@ func gophRunTest(t *testing.T) {
 
 	newServer("2021")
 
-	client, err := goph.NewConn(&goph.Config{
-		Addr:     "127.0.10.10",
-		Port:     2021,
-		User:     "melbahja",
-		Auth:     goph.Password("123456"),
-		Callback: ssh.InsecureIgnoreHostKey(),
-	})
+	client, err := goph.New("melbahja", "127.0.10.10",
+		goph.WithPassword("123456"),
+		goph.WithPort(2021),
+		goph.WithInsecureIgnoreHostKey(),
+	)
 
 	if err != nil {
 		t.Errorf("connect error: %s", err)
@@ -103,13 +100,11 @@ func gophWrongPassTest(t *testing.T) {
 
 	newServer("2022")
 
-	_, err := goph.NewConn(&goph.Config{
-		Addr:     "127.0.10.10",
-		Port:     2022,
-		User:     "melbahja",
-		Auth:     goph.Password("12345"),
-		Callback: ssh.InsecureIgnoreHostKey(),
-	})
+	_, err := goph.New("melbahja", "127.0.10.10",
+		goph.WithPassword("12345"),
+		goph.WithPort(2022),
+		goph.WithInsecureIgnoreHostKey(),
+	)
 
 	if err == nil {
 		t.Error("it should return an error")
@@ -143,18 +138,20 @@ func newServer(port string) {
 		log.Fatal("failed to listen for connection: ", err)
 	}
 
+	ready := make(chan struct{})
 	go func() {
+		close(ready)
 
 		nConn, err := listener.Accept()
 		if err != nil {
-			log.Fatal("failed to accept incoming connection: ", err)
+			return
 		}
 
 		// Before use, a handshake must be performed on the incoming
 		// net.Conn.
 		_, chans, reqs, err := ssh.NewServerConn(nConn, config)
 		if err != nil {
-			log.Fatal("failed to handshake: ", err)
+			return
 		}
 
 		// The incoming Request channel must be serviced.
@@ -197,4 +194,6 @@ func newServer(port string) {
 			}()
 		}
 	}()
+	<-ready
+	time.Sleep(10 * time.Millisecond)
 }
