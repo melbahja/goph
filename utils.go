@@ -1,4 +1,4 @@
-// Copyright 2020 Mohammed El Bahja. All rights reserved.
+// Copyright 2026 Mohammed El Bahja. All rights reserved.
 // Use of this source code is governed by a MIT license.
 
 package goph
@@ -8,12 +8,44 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
 
-// DefaultKnownHosts returns host key callback from default known hosts path, and error if any.
+// HasAgent checks if ssh agent exists via the SSH_AUTH_SOCK env variable.
+func HasAgent() bool {
+	return os.Getenv("SSH_AUTH_SOCK") != ""
+}
+
+// ParseKeyFile returns an ssh.Signer from a private key file.
+func ParseKeyFile(prvFile string, passphrase string) (ssh.Signer, error) {
+
+	privateKey, err := os.ReadFile(prvFile)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ParseKey(privateKey, passphrase)
+}
+
+// ParseKey returns an ssh.Signer from raw PEM encoded private key bytes.
+func ParseKey(privateKey []byte, passphrase string) (signer ssh.Signer, err error) {
+
+	if passphrase != "" {
+		signer, err = ssh.ParsePrivateKeyWithPassphrase(privateKey, []byte(passphrase))
+	} else {
+		signer, err = ssh.ParsePrivateKey(privateKey)
+	}
+
+	return signer, err
+}
+
+// DefaultKnownHosts returns a host key callback from the default known hosts path.
+// It ensures an empty known_hosts file exists, so first-time users get a
+// "host not found" result instead of a file read error.
 func DefaultKnownHosts() (ssh.HostKeyCallback, error) {
 
 	path, err := DefaultKnownHostsPath()
@@ -21,17 +53,35 @@ func DefaultKnownHosts() (ssh.HostKeyCallback, error) {
 		return nil, err
 	}
 
-	return KnownHosts(path)
+	return EnsureKnownHosts(path)
 }
 
-// KnownHosts returns host key callback from a custom known hosts path.
+// KnownHosts returns a host key callback from a custom known hosts path.
+// The file must already exist; if it is or may be missing, use EnsureKnownHosts.
 func KnownHosts(file string) (ssh.HostKeyCallback, error) {
+	return knownhosts.New(file)
+}
+
+// EnsureKnownHosts returns a host key callback from a custom known hosts path,
+// Creating the file (and its parent directory) if it does not exist.
+func EnsureKnownHosts(file string) (ssh.HostKeyCallback, error) {
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		if err := os.MkdirAll(filepath.Dir(file), 0700); err != nil {
+			return nil, err
+		}
+		f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+		if err != nil {
+			return nil, err
+		}
+		f.Close()
+	}
 	return knownhosts.New(file)
 }
 
 // CheckKnownHost checks is host in known hosts file.
 // it returns is the host found in known_hosts file and error, if the host found in
-// known_hosts file and error not nil that means public key mismatch, maybe MAN IN THE MIDDLE ATTACK! you should not handshake.
+// known_hosts file and error not nil that means public key mismatch,
+// maybe MAN IN THE MIDDLE ATTACK! you should not handshake.
 func CheckKnownHost(host string, remote net.Addr, key ssh.PublicKey, knownFile string) (found bool, err error) {
 
 	var keyErr *knownhosts.KeyError

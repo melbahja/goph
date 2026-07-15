@@ -40,7 +40,6 @@ import (
 
 var (
 	err        error
-	auth       goph.Auth
 	client     *goph.Client
 	addr       string
 	user       string
@@ -87,13 +86,11 @@ func VerifyHost(host string, remote net.Addr, key ssh.PublicKey) error {
 	// Host in known hosts but key mismatch!
 	// Maybe because of MAN IN THE MIDDLE ATTACK!
 	if hostFound && err != nil {
-
 		return err
 	}
 
 	// handshake because public key already exists.
 	if hostFound && err == nil {
-
 		return nil
 	}
 
@@ -112,33 +109,22 @@ func main() {
 
 	flag.Parse()
 
-	var err error
+	var opts []goph.Option
 
 	if agent || goph.HasAgent() {
-
-		auth, err = goph.UseAgent()
-
+		opts = append(opts, goph.WithDefaultAgent())
 	} else if pass {
-
-		auth = goph.Password(askPass("Enter SSH Password: "))
-
+		opts = append(opts, goph.WithPassword(askPass("Enter SSH Password: ")))
 	} else {
-
-		auth, err = goph.Key(key, getPassphrase(passphrase))
+		opts = append(opts, goph.WithKeyFile(key, getPassphrase(passphrase)))
 	}
 
-	if err != nil {
-		panic(err)
-	}
+	opts = append(opts,
+		goph.WithPort(port),
+		goph.WithHostKeyCallback(VerifyHost),
+	)
 
-	client, err = goph.NewConn(&goph.Config{
-		User:     user,
-		Addr:     addr,
-		Port:     port,
-		Auth:     auth,
-		Callback: VerifyHost,
-	})
-
+	client, err = goph.New(user, addr, opts...)
 	if err != nil {
 		panic(err)
 	}
@@ -212,9 +198,7 @@ func getSftp(client *goph.Client) *sftp.Client {
 	var err error
 
 	if sftpc == nil {
-
 		sftpc, err = client.NewSftp()
-
 		if err != nil {
 			panic(err)
 		}
@@ -226,7 +210,6 @@ func getSftp(client *goph.Client) *sftp.Client {
 func playWithSSHJustForTestingThisProgram(client *goph.Client) {
 
 	fmt.Println("Welcome To Goph :D")
-	fmt.Printf("Connected to %s\n", client.Config.Addr)
 	fmt.Println("Type your shell command and enter.")
 	fmt.Println("To download file from remote type: download remote/path local/path")
 	fmt.Println("To upload file to remote type: upload local/path remote/path")

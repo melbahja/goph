@@ -1,13 +1,13 @@
-// Copyright 2020 Mohammed El Bahja. All rights reserved.
+// Copyright 2026 Mohammed El Bahja. All rights reserved.
 // Use of this source code is governed by a MIT license.
 
 package goph
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"time"
 
@@ -15,85 +15,52 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// Client represents Goph client.
+// DefaultClientVersion is the SSH client version sent during handshake.
+const DefaultClientVersion = "SSH-2.0-Goph"
+
+// Client represents a Goph SSH client.
 type Client struct {
 	*ssh.Client
-	Config *Config
+
+	User     string
+	Addr     string
+	Port     uint
+	ProxyURL string
+	Jump     *Client
 }
 
-// Config for Client.
-type Config struct {
-	Auth           Auth
-	User           string
-	Addr           string
-	Port           uint
-	Timeout        time.Duration
-	Callback       ssh.HostKeyCallback
-	BannerCallback ssh.BannerCallback
-}
+// New starts a new SSH connection.
+// By default it uses the default known_hosts file for host key verification,
+// port 22, and a 20 second timeout. Override with With* options.
+func New(user, addr string, opts ...Option) (*Client, error) {
 
-// DefaultTimeout is the timeout of ssh client connection.
-var DefaultTimeout = 20 * time.Second
-
-// New starts a new ssh connection, the host public key must be in known hosts.
-func New(user string, addr string, auth Auth) (c *Client, err error) {
-
-	callback, err := DefaultKnownHosts()
-
-	if err != nil {
-		return
+	c := &Client{
+		User: user,
+		Addr: addr,
+		Port: 22,
 	}
 
-	c, err = NewConn(&Config{
-		User:     user,
-		Addr:     addr,
-		Port:     22,
-		Auth:     auth,
-		Timeout:  DefaultTimeout,
-		Callback: callback,
-	})
-	return
-}
-
-// NewUnknown starts a ssh connection get client without cheking knownhosts.
-// PLEASE AVOID USING THIS, UNLESS YOU KNOW WHAT ARE YOU DOING!
-// if there a "man in the middle proxy", this can harm you!
-// You can add the key to know hosts and use New() func instead!
-func NewUnknown(user string, addr string, auth Auth) (*Client, error) {
-	return NewConn(&Config{
-		User:     user,
-		Addr:     addr,
-		Port:     22,
-		Auth:     auth,
-		Timeout:  DefaultTimeout,
-		Callback: ssh.InsecureIgnoreHostKey(),
-	})
-}
-
-// NewConn returns new client and error if any.
-func NewConn(config *Config) (c *Client, err error) {
-
-	c = &Client{
-		Config: config,
+	config := &ssh.ClientConfig{
+		User:          user,
+		Timeout:       20 * time.Second,
+		ClientVersion: DefaultClientVersion,
 	}
 
-	c.Client, err = Dial("tcp", config)
-	return
-}
+	for _, opt := range opts {
+		if err := opt(c, config); err != nil {
+			return nil, err
+		}
+	}
 
-// Dial starts a client connection to SSH server based on config.
-func Dial(proto string, c *Config) (*ssh.Client, error) {
-	return ssh.Dial(proto, net.JoinHostPort(c.Addr, fmt.Sprint(c.Port)), &ssh.ClientConfig{
-		User:            c.User,
-		Auth:            c.Auth,
-		Timeout:         c.Timeout,
-		HostKeyCallback: c.Callback,
-		BannerCallback:  c.BannerCallback,
-	})
+	if err := Dial(c, config); err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }
 
 // Run starts a new SSH session and runs the cmd, it returns CombinedOutput and err if any.
-func (c Client) Run(cmd string) ([]byte, error) {
+func (c *Client) Run(cmd string) ([]byte, error) {
 
 	var (
 		err  error
@@ -103,14 +70,13 @@ func (c Client) Run(cmd string) ([]byte, error) {
 	if sess, err = c.NewSession(); err != nil {
 		return nil, err
 	}
-
 	defer sess.Close()
 
 	return sess.CombinedOutput(cmd)
 }
 
-// Run starts a new SSH session with context and runs the cmd. It returns CombinedOutput and err if any.
-func (c Client) RunContext(ctx context.Context, name string) ([]byte, error) {
+// RunContext starts a new SSH session with context and runs the cmd.
+func (c *Client) RunContext(ctx context.Context, name string) ([]byte, error) {
 	cmd, err := c.CommandContext(ctx, name)
 	if err != nil {
 		return nil, err
@@ -120,49 +86,38 @@ func (c Client) RunContext(ctx context.Context, name string) ([]byte, error) {
 }
 
 // Command returns new Cmd and error if any.
-func (c Client) Command(name string, args ...string) (*Cmd, error) {
+func (c *Client) Command(name string, args ...string) (*Cmd, error) {
+	return c.CommandContext(context.Background(), name, args...)
+}
 
-	var (
-		sess *ssh.Session
-		err  error
-	)
+// CommandContext returns new Cmd with context and error, if any.
+func (c *Client) CommandContext(ctx context.Context, name string, args ...string) (*Cmd, error) {
 
-	if sess, err = c.NewSession(); err != nil {
+	sess, err := c.NewSession()
+	if err != nil {
 		return nil, err
 	}
 
 	return &Cmd{
+		ctx:     ctx,
 		Path:    name,
 		Args:    args,
 		Session: sess,
-		Context: context.Background(),
 	}, nil
 }
 
-// Command returns new Cmd with context and error, if any.
-func (c Client) CommandContext(ctx context.Context, name string, args ...string) (*Cmd, error) {
-	cmd, err := c.Command(name, args...)
-	if err != nil {
-		return cmd, err
-	}
-
-	cmd.Context = ctx
-
-	return cmd, nil
-}
-
-// NewSftp returns new sftp client and error if any.
-func (c Client) NewSftp(opts ...sftp.ClientOption) (*sftp.Client, error) {
+// NewSftp returns a new SFTP client.
+func (c *Client) NewSftp(opts ...sftp.ClientOption) (*sftp.Client, error) {
 	return sftp.NewClient(c.Client, opts...)
 }
 
-// Close client net connection.
-func (c Client) Close() error {
+// Close closes the SSH connection.
+func (c *Client) Close() error {
 	return c.Client.Close()
 }
 
-// Upload a local file to remote server!
-func (c Client) Upload(localPath string, remotePath string) (err error) {
+// Upload a local file to the remote server.
+func (c *Client) Upload(localPath string, remotePath string) (err error) {
 
 	local, err := os.Open(localPath)
 	if err != nil {
@@ -186,8 +141,8 @@ func (c Client) Upload(localPath string, remotePath string) (err error) {
 	return
 }
 
-// Download file from remote server!
-func (c Client) Download(remotePath string, localPath string) (err error) {
+// Download file from remote server.
+func (c *Client) Download(remotePath string, localPath string) (err error) {
 
 	local, err := os.Create(localPath)
 	if err != nil {
@@ -212,4 +167,31 @@ func (c Client) Download(remotePath string, localPath string) (err error) {
 	}
 
 	return local.Sync()
+}
+
+// Script runs a script from an io.Reader on the remote host via /bin/sh you can override (with WithPath).
+func (c *Client) Script(ctx context.Context, r io.Reader, opts ...CmdOption) (cmd *Cmd, err error) {
+
+	if cmd, err = c.CommandContext(ctx, "/bin/sh"); err != nil {
+		return nil, err
+	}
+
+	for _, opt := range opts {
+		opt(cmd)
+	}
+	cmd.Stdin = r
+
+	return cmd, nil
+}
+
+// ScriptFile reads the local script file into memory and executes it on the remote.
+// Warning: the entire file is loaded into memory. Use Script with an io.Reader directly for large files.
+func (c *Client) ScriptFile(ctx context.Context, localPath string, opts ...CmdOption) (*Cmd, error) {
+
+	content, err := os.ReadFile(localPath)
+	if err != nil {
+		return nil, fmt.Errorf("goph: read script: %w", err)
+	}
+
+	return c.Script(ctx, bytes.NewReader(content), opts...)
 }
