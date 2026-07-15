@@ -1,4 +1,4 @@
-// Copyright 2020 Mohammed El Bahja. All rights reserved.
+// Copyright 2026 Mohammed El Bahja. All rights reserved.
 // Use of this source code is governed by a MIT license.
 
 package goph
@@ -96,13 +96,24 @@ func WithAgent(conn net.Conn) Option {
 
 // WithAgentSocket sets SSH agent authentication from a Unix socket path.
 // Silently skips if the agent socket is unavailable.
+// The socket is dialed lazily during the SSH handshake, so this option is
+// safe to apply multiple times (e.g. for connection key calculation).
 func WithAgentSocket(socket string) Option {
 
 	return func(c *Client, config *ssh.ClientConfig) error {
 
-		if conn, err := net.Dial("unix", socket); err == nil {
-			return WithAgent(conn)(c, config)
+		if socket == "" {
+			return nil
 		}
+
+		config.Auth = append(config.Auth, ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
+			conn, err := net.Dial("unix", socket)
+			if err != nil {
+				// Silently skip the agent if the socket is not reachable.
+				return nil, nil
+			}
+			return agent.NewClient(conn).Signers()
+		}))
 
 		return nil
 	}
