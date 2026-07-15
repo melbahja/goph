@@ -39,7 +39,7 @@
 ## 🚀&nbsp; Installation
 
 ```bash
-go get github.com/melbahja/goph
+go get github.com/melbahja/goph/v2
 ```
 
 ## 📄&nbsp; Get Started
