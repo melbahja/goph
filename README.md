@@ -51,7 +51,7 @@ package main
 import (
 	"log"
 	"fmt"
-	"github.com/melbahja/goph"
+	"github.com/melbahja/goph/v2"
 )
 
 func main() {
