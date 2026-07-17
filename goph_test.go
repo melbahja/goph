@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/melbahja/goph"
+	"github.com/melbahja/goph/v2"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 )
