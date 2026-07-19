@@ -193,6 +193,15 @@ func WithHostKeyCallback(cb ssh.HostKeyCallback) Option {
 	}
 }
 
+// WithHostKeyAlgorithms sets a custom HostKeyAlgorithms.
+func WithHostKeyAlgorithms(hostKeyAlgorithms []string) Option {
+
+	return func(c *Client, config *ssh.ClientConfig) error {
+		config.HostKeyAlgorithms = hostKeyAlgorithms
+		return nil
+	}
+}
+
 // WithBannerCallback sets a banner callback.
 func WithBannerCallback(cb ssh.BannerCallback) Option {
 
